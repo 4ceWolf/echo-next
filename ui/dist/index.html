@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="color-scheme" content="dark" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Echo Next</title>
+<style>
+/* ============================== tokens ============================== */
+:root{
+  --accent-rgb: 139 124 255;
+  --accent2-rgb: 90 150 255;
+  --accent: rgb(var(--accent-rgb));
+  --accent-soft: rgb(var(--accent-rgb) / .16);
+  --accent-line: rgb(var(--accent-rgb) / .38);
+  --accent-glow: rgb(var(--accent-rgb) / .42);
+  --bg-0:#07070c;
+  --bg-1:#0b0b14;
+  --panel: rgb(22 22 35 / .55);
+  --panel-2: rgb(30 30 48 / .62);
+  --panel-solid: #14141f;
+  --stroke: rgb(255 255 255 / .075);
+  --stroke-strong: rgb(255 255 255 / .14);
+  --text:#eef0fa;
+  --muted:#9a9db6;
+  --muted-2:#6b6e88;
+  --ok:#5ad1a0;
+  --warn:#f2b657;
+  --bad:#f26868;
+  --r-xl:24px; --r-lg:18px; --r-md:13px; --r-sm:9px;
+  --gap:16px;
+  --shadow: 0 18px 50px rgb(0 0 0 / .45);
+  --blur: blur(20px) saturate(1.25);
+  --ease: cubic-bezier(.22,.61,.36,1);
+}
+body[data-theme="oled"]{ --bg-0:#000; --bg-1:#000; --panel:rgb(16 16 20/.72); --panel-2:rgb(22 22 30/.8); --panel-solid:#0a0a0d; }
+body[data-theme="light"]{
+  --bg-0:#e9eaf2; --bg-1:#f4f5fb; --panel:rgb(255 255 255/.6); --panel-2:rgb(255 255 255/.72);
+  --panel-solid:#ffffff; --stroke:rgb(20 20 40/.09); --stroke-strong:rgb(20 20 40/.16);
+  --text:#181a2b; --muted:#5a5d78; --muted-2:#85889f; --shadow:0 18px 50px rgb(40 40 80/.18);
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0; background:var(--bg-0); color:var(--text); overflow:hidden;
+  font-family:"Inter","SF Pro Display",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:14px; -webkit-font-smoothing:antialiased; letter-spacing:.1px;
+}
+button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+input{ font:inherit; color:inherit; }
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-thumb{ background:rgb(255 255 255/.09); border-radius:20px; border:3px solid transparent; background-clip:padding-box; }
+::-webkit-scrollbar-thumb:hover{ background:rgb(255 255 255/.16); background-clip:padding-box; }
+
+/* ============================== ambient ============================== */
+.ambient{ position:fixed; inset:-20%; z-index:0; pointer-events:none; filter:blur(90px) saturate(1.4); opacity:.5; }
+.ambient .layer{ position:absolute; inset:0; background-size:cover; background-position:center; opacity:0; transition:opacity 1.4s var(--ease); }
+.ambient .layer.on{ opacity:1; }
+.ambient::after{ content:""; position:absolute; inset:0; background:
+  radial-gradient(60% 55% at 18% 10%, rgb(var(--accent-rgb) / .28), transparent 70%),
+  radial-gradient(55% 60% at 85% 90%, rgb(var(--accent2-rgb) / .22), transparent 70%); }
+body[data-theme="light"] .ambient{ opacity:.32; }
+.grid-lines{ position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.5;
+  background-image:linear-gradient(rgb(255 255 255/.028) 1px,transparent 1px),linear-gradient(90deg,rgb(255 255 255/.028) 1px,transparent 1px);
+  background-size:64px 64px; mask-image:radial-gradient(80% 80% at 50% 30%,#000,transparent); }
+body[data-theme="light"] .grid-lines{ background-image:linear-gradient(rgb(20 20 40/.05) 1px,transparent 1px),linear-gradient(90deg,rgb(20 20 40/.05) 1px,transparent 1px); }
+
+/* ============================== shell ============================== */
+.app{ position:relative; z-index:1; display:flex; height:100vh; }
+.sidebar{ width:86px; flex:0 0 86px; display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:18px 10px; border-right:1px solid var(--stroke); background:linear-gradient(180deg,rgb(255 255 255/.03),transparent); }
+.brand{ width:46px; height:46px; border-radius:15px; margin-bottom:14px; display:grid; place-items:center;
+  background:linear-gradient(145deg,rgb(var(--accent-rgb)),rgb(var(--accent2-rgb))); box-shadow:0 8px 26px var(--accent-glow), inset 0 1px 0 rgb(255 255 255/.5); }
+.brand svg{ width:26px; height:26px; }
+.nav{ display:flex; flex-direction:column; gap:4px; width:100%; }
+.nav-btn{ width:100%; border-radius:14px; padding:10px 4px 7px; display:flex; flex-direction:column; align-items:center; gap:5px;
+  color:var(--muted); transition:color .2s var(--ease), background .2s var(--ease), transform .2s var(--ease); position:relative; }
+.nav-btn svg{ width:21px; height:21px; }
+.nav-btn span{ font-size:9.5px; letter-spacing:.4px; text-transform:uppercase; opacity:.85; }
+.nav-btn:hover{ color:var(--text); background:rgb(255 255 255/.05); }
+.nav-btn.active{ color:var(--text); background:var(--accent-soft); }
+.nav-btn.active::before{ content:""; position:absolute; left:-10px; top:50%; transform:translateY(-50%); width:3px; height:22px; border-radius:4px; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+.sidebar-foot{ margin-top:auto; display:flex; flex-direction:column; gap:4px; width:100%; }
+.main{ flex:1; min-width:0; display:flex; flex-direction:column; height:100vh; }
+
+/* ============================== topbar ============================== */
+.topbar{ flex:0 0 auto; display:flex; align-items:center; gap:14px; padding:16px 24px 12px; }
+.search-wrap{ flex:1; max-width:520px; display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:14px;
+  background:var(--panel); border:1px solid var(--stroke); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); }
+.search-wrap svg{ width:16px; height:16px; color:var(--muted-2); flex:0 0 auto; }
+.search-wrap input{ flex:1; background:none; border:none; outline:none; min-width:0; }
+.search-wrap input::placeholder{ color:var(--muted-2); }
+.top-now{ margin-left:auto; display:flex; align-items:center; gap:10px; padding:7px 12px 7px 8px; border-radius:14px;
+  background:var(--panel); border:1px solid var(--stroke); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); max-width:340px; }
+.top-now .thumb{ width:32px; height:32px; border-radius:9px; background-size:cover; background-position:center; flex:0 0 auto;
+  background-color:rgb(255 255 255/.06); border:1px solid var(--stroke); }
+.top-now .t{ min-width:0; }
+.top-now .t b{ display:block; font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
+.top-now .t i{ display:block; font-style:normal; font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; }
+.chip{ padding:8px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--stroke); color:var(--muted);
+  font-size:12px; transition:.2s var(--ease); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); }
+.chip:hover{ color:var(--text); border-color:var(--stroke-strong); }
+.chip.on{ color:var(--text); border-color:var(--accent-line); background:var(--accent-soft); }
+
+/* ============================== pages ============================== */
+.pages{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:6px 24px 24px; }
+.page{ display:none; animation:pageIn .5s var(--ease); }
+.page.active{ display:block; }
+@keyframes pageIn{ from{ opacity:0; transform:translateY(10px); filter:blur(6px); } to{ opacity:1; transform:none; filter:none; } }
+body[data-motion="reduced"] .page, body[data-motion="minimal"] .page{ animation:none; }
+.page-head{ display:flex; align-items:flex-end; gap:14px; margin:6px 2px 16px; }
+.page-head h1{ font-size:26px; font-weight:700; margin:0; letter-spacing:-.4px; }
+.page-head p{ margin:0; color:var(--muted); font-size:12.5px; }
+.page-head .spacer{ flex:1; }
+
+/* ============================== cards ============================== */
+.card{ position:relative; border-radius:var(--r-lg); padding:16px 17px; overflow:hidden;
+  background:linear-gradient(158deg,rgb(255 255 255/.055),rgb(255 255 255/.015)),var(--panel);
+  border:1px solid var(--stroke); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur);
+  box-shadow:var(--shadow); transition:border-color .3s var(--ease), transform .3s var(--ease); }
+.card:hover{ border-color:var(--stroke-strong); }
+.card-label{ display:flex; align-items:center; gap:8px; font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted-2); margin-bottom:12px; }
+.card-label .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; font-size:10px; letter-spacing:.4px;
+  background:rgb(255 255 255/.06); border:1px solid var(--stroke); color:var(--muted); white-space:nowrap; }
+.badge.accent{ background:var(--accent-soft); border-color:var(--accent-line); color:var(--text); }
+.badge.pending{ color:var(--warn); border-color:rgb(242 182 87/.3); }
+.badge.off{ opacity:.55; }
+
+/* ============================== dashboard grid ============================== */
+.dash-grid{ display:grid; grid-template-columns:repeat(12,1fr); grid-auto-rows:minmax(84px,auto); gap:var(--gap); }
+.card--hero{ grid-column:span 7; grid-row:span 4; display:flex; gap:20px; padding:20px; }
+.card--pulse{ grid-column:span 5; grid-row:span 2; }
+.card--timeline{ grid-column:span 12; }
+.card--queue{ grid-column:span 5; grid-row:span 2; }
+.card--quality{ grid-column:span 7; }
+.card--dsp{ grid-column:span 5; }
+@media (max-width:1180px){
+  .card--hero{ grid-column:span 12; grid-row:auto; }
+  .card--pulse{ grid-column:span 6; }
+  .card--queue{ grid-column:span 6; grid-row:auto; }
+  .card--quality{ grid-column:span 6; }
+  .card--dsp{ grid-column:span 6; }
+}
+@media (max-width:760px){
+  .card--pulse,.card--queue,.card--quality,.card--dsp{ grid-column:span 12; }
+}
+@media (max-width:620px){
+  .card--hero{ flex-direction:column; }
+  .depth-stage{ width:100%; height:auto; aspect-ratio:1; }
+  .top-now{ display:none; }
+  .sidebar{ width:64px; flex-basis:64px; }
+  .nav-btn span{ display:none; }
+  .pages{ padding:6px 14px 24px; }
+  .topbar{ padding:14px 14px 10px; }
+  .playerbar{ padding:10px 14px 14px; }
+  .pb-left,.pb-right{ width:auto; }
+  .pb-left .t{ display:none; }
+}
+
+/* ============================== depth stage ============================== */
+.depth-stage{ position:relative; flex:0 0 auto; width:230px; height:230px; border-radius:var(--r-lg); overflow:hidden;
+  background:radial-gradient(120% 120% at 30% 20%,rgb(var(--accent-rgb)/.35),rgb(10 10 18/.9)); border:1px solid var(--stroke); }
+.depth-stage.large{ width:min(420px,42vw); height:min(420px,42vw); }
+.depth-art{ position:absolute; inset:-7%; background-size:cover; background-position:center; opacity:0;
+  transition:opacity .7s var(--ease), transform .35s var(--ease); will-change:transform; }
+.depth-stage.has-art .depth-art[data-layer="bg"]{ opacity:1; transform:scale(1.08); }
+.depth-stage.has-depth .depth-art[data-layer="fg"]{ opacity:1; filter:brightness(1.05) saturate(1.06); transform:scale(1.08); }
+.depth-sheen{ position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg,transparent 45%,rgb(0 0 0/.55)),radial-gradient(120% 90% at 50% 0%,rgb(255 255 255/.08),transparent 55%); }
+.depth-empty{ position:absolute; inset:0; display:grid; place-items:center; color:var(--muted-2); font-size:11px; letter-spacing:1px; text-transform:uppercase; text-align:center; padding:12px; }
+.depth-stage.has-art .depth-empty{ display:none; }
+.depth-stage .depth-tag{ position:absolute; left:10px; bottom:10px; z-index:3; }
+body[data-motion="minimal"] .depth-art{ transition:opacity .3s; }
+body[data-motion="minimal"] .depth-stage.has-art .depth-art[data-layer="bg"],
+body[data-motion="minimal"] .depth-stage.has-depth .depth-art[data-layer="fg"],
+body[data-motion="reduced"] .depth-stage.has-art .depth-art[data-layer="bg"],
+body[data-motion="reduced"] .depth-stage.has-depth .depth-art[data-layer="fg"]{ transform:none; }
+
+/* ============================== hero ============================== */
+.hero-body{ min-width:0; flex:1; display:flex; flex-direction:column; }
+.hero-body h2{ margin:2px 0 2px; font-size:23px; font-weight:700; letter-spacing:-.3px; line-height:1.15; }
+.hero-body .artist{ color:var(--muted); font-size:14px; }
+.hero-body .album{ color:var(--muted-2); font-size:12px; margin-top:2px; }
+.hero-badges{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.hero-spacer{ flex:1; }
+.hero-controls{ display:flex; align-items:center; gap:10px; margin-top:14px; }
+.hero-scrub{ margin-top:12px; }
+
+/* ============================== transport ============================== */
+.icon-btn{ width:38px; height:38px; border-radius:12px; display:grid; place-items:center; color:var(--muted);
+  border:1px solid transparent; transition:.18s var(--ease); }
+.icon-btn svg{ width:19px; height:19px; }
+.icon-btn:hover{ color:var(--text); background:rgb(255 255 255/.06); }
+.icon-btn.on{ color:var(--text); background:var(--accent-soft); border-color:var(--accent-line); }
+.icon-btn.primary{ width:46px; height:46px; border-radius:15px; color:#0b0b14;
+  background:linear-gradient(150deg,rgb(var(--accent-rgb)),rgb(var(--accent2-rgb))); box-shadow:0 8px 22px var(--accent-glow); }
+.icon-btn.primary svg{ width:21px; height:21px; }
+.icon-btn:disabled{ opacity:.35; cursor:default; }
+.seek{ -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:20px; outline:none; cursor:pointer;
+  background:linear-gradient(90deg,var(--accent) 0 var(--seek,0%),rgb(255 255 255/.1) var(--seek,0%) 100%); }
+.seek::-webkit-slider-thumb{ -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:#fff;
+  box-shadow:0 0 0 3px rgb(var(--accent-rgb)/.35); opacity:0; transition:opacity .2s; }
+.seek:hover::-webkit-slider-thumb,.seek:active::-webkit-slider-thumb{ opacity:1; }
+.seek:disabled{ cursor:default; }
+.time{ display:flex; justify-content:space-between; color:var(--muted-2); font-size:11px; font-variant-numeric:tabular-nums; margin-top:5px; }
+
+/* ============================== pulse / stats ============================== */
+.stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.stat{ padding:12px 13px; border-radius:var(--r-md); background:rgb(255 255 255/.035); border:1px solid var(--stroke); }
+.stat b{ display:block; font-size:24px; font-weight:700; letter-spacing:-.5px; font-variant-numeric:tabular-nums; }
+.stat span{ font-size:10.5px; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; }
+
+/* ============================== timeline ============================== */
+.timeline{ display:flex; align-items:stretch; gap:0; height:64px; }
+.tl-seg{ position:relative; min-width:8px; border-radius:9px; overflow:hidden; background:rgb(255 255 255/.05);
+  border:1px solid var(--stroke); transition:flex-grow .5s var(--ease), transform .2s var(--ease); }
+.tl-seg:hover{ transform:translateY(-2px); }
+.tl-seg .fill{ position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,rgb(var(--accent-rgb)/.85),rgb(var(--accent-rgb)/.5)); }
+.tl-seg.current{ background:rgb(var(--accent-rgb)/.12); border-color:var(--accent-line); }
+.tl-seg .lab{ position:absolute; inset:auto 8px 6px 8px; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); opacity:.9; }
+.tl-seg .num{ position:absolute; top:6px; left:8px; font-size:9px; letter-spacing:1px; color:var(--muted-2); }
+.timeline-empty{ color:var(--muted-2); font-size:12px; padding:20px 0; }
+
+/* ============================== lists ============================== */
+.list{ display:flex; flex-direction:column; }
+.row{ display:flex; align-items:center; gap:12px; padding:8px 10px; border-radius:var(--r-md); transition:background .16s var(--ease); }
+.row:hover{ background:rgb(255 255 255/.05); }
+.row .idx{ width:22px; text-align:right; color:var(--muted-2); font-size:11px; font-variant-numeric:tabular-nums; flex:0 0 auto; }
+.row .rthumb{ width:40px; height:40px; border-radius:10px; background-size:cover; background-position:center; object-fit:cover; flex:0 0 auto;
+  background-color:rgb(255 255 255/.06); border:1px solid var(--stroke); }
+.row .rmeta{ min-width:0; flex:1; }
+.row .rmeta b{ display:block; font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .rmeta i{ display:block; font-style:normal; font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .rtime{ color:var(--muted-2); font-size:11.5px; font-variant-numeric:tabular-nums; flex:0 0 auto; }
+.row .ractions{ display:flex; gap:4px; opacity:0; transition:opacity .16s; flex:0 0 auto; }
+.row:hover .ractions{ opacity:1; }
+.row.playing .rmeta b{ color:var(--accent); }
+.row .eq{ display:flex; gap:2px; align-items:flex-end; height:12px; width:14px; flex:0 0 auto; }
+.row .eq i{ width:2px; background:var(--accent); border-radius:2px; animation:eq .9s ease-in-out infinite; }
+.row .eq i:nth-child(1){ height:50%; animation-delay:-.2s; } .row .eq i:nth-child(2){ height:100%; } .row .eq i:nth-child(3){ height:70%; animation-delay:-.5s; }
+@keyframes eq{ 0%,100%{ transform:scaleY(.4); } 50%{ transform:scaleY(1); } }
+body[data-motion="minimal"] .row .eq i{ animation:none; }
+
+/* ============================== browse ============================== */
+.lenses{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+.lens{ padding:7px 14px; border-radius:11px; font-size:12.5px; color:var(--muted); border:1px solid var(--stroke);
+  background:var(--panel); transition:.18s var(--ease); }
+.lens:hover{ color:var(--text); }
+.lens.active{ color:var(--text); background:var(--accent-soft); border-color:var(--accent-line); }
+.group{ margin-bottom:18px; }
+.group-head{ display:flex; align-items:center; gap:12px; margin:0 2px 8px; }
+.group-head h3{ margin:0; font-size:15px; font-weight:600; }
+.group-head .gcount{ color:var(--muted-2); font-size:11.5px; }
+.group-head .spacer{ flex:1; }
+.album-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
+.album-card{ border-radius:var(--r-md); padding:10px; background:rgb(255 255 255/.03); border:1px solid var(--stroke); transition:.2s var(--ease); }
+.album-card:hover{ border-color:var(--stroke-strong); transform:translateY(-2px); }
+.album-card .cover{ display:block; width:100%; aspect-ratio:1; border-radius:10px; background-size:cover; background-position:center; object-fit:cover;
+  background-color:rgb(255 255 255/.05); margin-bottom:9px; }
+.album-card b{ display:block; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.album-card span{ display:block; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ============================== player bar ============================== */
+.playerbar{ flex:0 0 auto; display:flex; align-items:center; gap:18px; padding:12px 24px 16px; border-top:1px solid var(--stroke);
+  background:linear-gradient(180deg,transparent,rgb(0 0 0/.18)); }
+.pb-left{ display:flex; align-items:center; gap:11px; width:230px; flex:0 0 auto; min-width:0; }
+.pb-left .thumb{ width:44px; height:44px; border-radius:11px; background-size:cover; background-position:center; flex:0 0 auto;
+  background-color:rgb(255 255 255/.06); border:1px solid var(--stroke); }
+.pb-left .t{ min-width:0; }
+.pb-left .t b{ display:block; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pb-left .t i{ display:block; font-style:normal; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pb-center{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.pb-controls{ display:flex; align-items:center; justify-content:center; gap:8px; }
+.pb-right{ display:flex; align-items:center; gap:6px; width:230px; flex:0 0 auto; justify-content:flex-end; }
+.repeat-badge{ font-size:9px; margin-left:-9px; margin-top:-14px; padding:0 3px; border-radius:4px; background:var(--accent); color:#0b0b14; font-weight:700; }
+
+/* ============================== queue page ============================== */
+.queue-wrap{ display:grid; grid-template-columns:1.6fr 1fr; gap:var(--gap); align-items:start; }
+@media (max-width:980px){ .queue-wrap{ grid-template-columns:1fr; } }
+.queue-tools{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.now-card{ padding:14px; border-radius:var(--r-md); background:var(--accent-soft); border:1px solid var(--accent-line); }
+
+/* ============================== now playing page ============================== */
+/* ============================== now playing (immersive) ============================== */
+#page-nowplaying{ position:fixed; inset:0; z-index:40; margin:0; padding:0; }
+.np-stage{ position:relative; width:100%; height:100%; overflow:hidden; background:#05050a; perspective:1500px; }
+.np-art{ position:absolute; inset:-6%; background-size:cover; background-position:center; opacity:0; pointer-events:none;
+  transition:opacity .8s var(--ease), transform .45s var(--ease); will-change:transform; }
+.np-stage.has-art .np-art-bg{ z-index:1; opacity:1; filter:brightness(.82) saturate(1.05); transform:scale(1.06); }
+.np-stage.has-depth .np-art-fg{ z-index:6; opacity:1; transform:scale(1.06); }
+@keyframes npFloat{ 0%,100%{ transform:scale(1.06) translateY(0); } 50%{ transform:scale(1.066) translateY(-6px); } }
+body[data-motion="full"] .np-stage.has-depth .np-art-fg{ animation:npFloat 11s ease-in-out infinite; }
+.np-scrim{ position:absolute; inset:0; z-index:2; pointer-events:none;
+  background:linear-gradient(180deg, rgb(0 0 0/.5) 0%, transparent 26%, transparent 46%, rgb(0 0 0/.74) 100%); }
+.np-lyrics{ position:absolute; z-index:3; top:47%; width:min(44%,560px); display:flex; flex-direction:column; gap:7px;
+  pointer-events:none; transform:translateY(-50%); transition:transform .45s var(--ease), opacity .3s; }
+.np-lyrics.pos-left{ left:6%; align-items:flex-start; text-align:left; }
+.np-lyrics.pos-center{ left:50%; transform:translate(-50%,-50%); align-items:center; text-align:center; width:min(72%,820px); }
+.np-lyrics.pos-right{ right:6%; align-items:flex-end; text-align:right; }
+.np-lyrics.pos-off{ display:none; }
+.np-lyrics .line{ font-size:27px; font-weight:600; line-height:1.3; color:rgb(255 255 255/.34);
+  text-shadow:0 2px 18px rgb(0 0 0/.9); transition:color .3s var(--ease), transform .3s var(--ease), font-size .3s var(--ease); }
+.np-lyrics .line.near{ color:rgb(255 255 255/.6); }
+.np-lyrics .line.cur{ color:#fff; transform:translateX(7px); }
+.np-ui{ position:absolute; z-index:4; left:0; right:0; bottom:0; padding:24px 6% 30px; display:flex; flex-direction:column; gap:13px; }
+.np-meta h2{ margin:0; font-size:34px; font-weight:700; letter-spacing:-.5px; text-shadow:0 2px 22px rgb(0 0 0/.85); }
+.np-sub{ color:rgb(255 255 255/.78); font-size:15px; margin-top:2px; text-shadow:0 2px 14px rgb(0 0 0/.85); }
+.np-album{ color:rgb(255 255 255/.5); font-size:12px; margin-top:2px; text-shadow:0 2px 14px rgb(0 0 0/.85); }
+.np-scrub{ max-width:920px; }
+.np-controls{ display:flex; align-items:center; gap:9px; }
+.np-controls .icon-btn{ color:rgb(255 255 255/.72); }
+.np-controls .icon-btn:hover{ color:#fff; background:rgb(255 255 255/.12); }
+.np-controls .icon-btn.on{ color:#fff; background:rgb(255 255 255/.18); border-color:rgb(255 255 255/.3); }
+.np-dsp{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.dsp-chip{ padding:7px 13px; border-radius:11px; font-size:12px; color:rgb(255 255 255/.72);
+  background:rgb(255 255 255/.08); border:1px solid rgb(255 255 255/.16); transition:.18s var(--ease); }
+.dsp-chip:hover{ color:#fff; background:rgb(255 255 255/.15); }
+.dsp-chip.on{ color:#0b0b14; background:var(--accent); border-color:transparent; box-shadow:0 4px 16px var(--accent-glow); }
+.dsp-chip:disabled{ opacity:.4; cursor:default; }
+.dsp-speed{ display:flex; align-items:center; gap:8px; color:rgb(255 255 255/.72); font-size:12px; }
+.dsp-speed input[type=range]{ width:110px; accent-color:var(--accent); }
+.dsp-speed b{ font-variant-numeric:tabular-nums; }
+.np-vignette{ position:absolute; inset:0; z-index:7; pointer-events:none;
+  background:radial-gradient(125% 100% at 50% 42%, transparent 52%, rgb(0 0 0/.5)); }
+.np-top{ position:absolute; z-index:8; top:0; left:0; right:0; padding:16px 20px; display:flex; align-items:center; gap:10px; }
+.np-top .np-badges{ display:flex; gap:6px; margin-left:auto; }
+.np-close{ padding:8px 14px; border-radius:12px; background:rgb(0 0 0/.4); border:1px solid rgb(255 255 255/.16);
+  color:#fff; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); transition:.18s var(--ease); }
+.np-close:hover{ background:rgb(0 0 0/.62); }
+.np-empty{ position:absolute; inset:0; display:grid; place-items:center; color:var(--muted-2); z-index:1; }
+body[data-motion="reduced"] .np-art, body[data-motion="minimal"] .np-art{ transform:none; }
+body[data-motion="reduced"] .np-lyrics, body[data-motion="minimal"] .np-lyrics{ transform:translateY(-50%); }
+@media (max-width:760px){
+  .np-lyrics{ width:78%; left:5%; top:34%; }
+  .np-meta h2{ font-size:24px; }
+  .np-ui{ padding:18px 5% 22px; }
+}
+.chain{ display:flex; flex-direction:column; gap:8px; }
+.chain .stage{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r-md); background:rgb(255 255 255/.035); border:1px solid var(--stroke); cursor:pointer; transition:.18s var(--ease); }
+.chain .stage:hover{ border-color:var(--stroke-strong); }
+.chain .stage.dis{ cursor:default; opacity:.5; }
+.chain .stage.on{ border-color:var(--accent-line); background:var(--accent-soft); }
+.chain .stage .sdot{ width:7px; height:7px; border-radius:50%; background:var(--muted-2); }
+.chain .stage.on .sdot{ background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.chain .stage .sname{ flex:1; font-size:12.5px; }
+.chain .stage .sstate{ font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted-2); }
+
+/* ============================== settings ============================== */
+.settings-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); align-items:start; }
+@media (max-width:900px){ .settings-grid{ grid-template-columns:1fr; } }
+.field{ margin-bottom:16px; }
+.field > label{ display:block; font-size:11px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted-2); margin-bottom:8px; }
+.opts{ display:flex; flex-wrap:wrap; gap:6px; }
+.opt{ padding:7px 13px; border-radius:11px; font-size:12.5px; color:var(--muted); border:1px solid var(--stroke); background:rgb(255 255 255/.03); transition:.18s var(--ease); }
+.opt:hover{ color:var(--text); }
+.opt.active{ color:var(--text); background:var(--accent-soft); border-color:var(--accent-line); }
+.opt:disabled{ opacity:.4; cursor:default; }
+.text-input{ width:100%; padding:10px 13px; border-radius:12px; background:rgb(255 255 255/.04); border:1px solid var(--stroke); outline:none; }
+.text-input:focus{ border-color:var(--accent-line); }
+.hint{ color:var(--muted-2); font-size:11.5px; line-height:1.5; margin-top:8px; }
+
+/* ============================== onboarding ============================== */
+.overlay{ position:fixed; inset:0; z-index:50; display:none; place-items:center; background:rgb(4 4 8/.72);
+  -webkit-backdrop-filter:blur(22px); backdrop-filter:blur(22px); }
+.overlay.open{ display:grid; }
+.modal{ width:min(760px,92vw); max-height:88vh; overflow:auto; border-radius:var(--r-xl); padding:30px 32px;
+  background:linear-gradient(160deg,rgb(255 255 255/.06),rgb(255 255 255/.015)),var(--panel-solid);
+  border:1px solid var(--stroke-strong); box-shadow:0 40px 90px rgb(0 0 0/.6); animation:modalIn .5s var(--ease); }
+@keyframes modalIn{ from{ opacity:0; transform:translateY(18px) scale(.98); filter:blur(8px); } to{ opacity:1; transform:none; filter:none; } }
+.ob-head{ display:flex; align-items:center; gap:14px; margin-bottom:22px; }
+.ob-head .mark{ width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
+  background:linear-gradient(145deg,rgb(var(--accent-rgb)),rgb(var(--accent2-rgb))); box-shadow:0 8px 26px var(--accent-glow); }
+.ob-head h2{ margin:0; font-size:21px; }
+.ob-head p{ margin:3px 0 0; color:var(--muted); font-size:12.5px; }
+.ob-dots{ display:flex; gap:6px; margin-left:auto; }
+.ob-dots i{ width:7px; height:7px; border-radius:50%; background:rgb(255 255 255/.15); }
+.ob-dots i.on{ background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.ob-step{ display:none; }
+.ob-step.on{ display:block; animation:pageIn .45s var(--ease); }
+.choice-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:640px){ .choice-grid{ grid-template-columns:1fr; } }
+.choice{ text-align:left; padding:16px; border-radius:var(--r-lg); border:1px solid var(--stroke); background:rgb(255 255 255/.03); transition:.2s var(--ease); }
+.choice:hover{ border-color:var(--stroke-strong); }
+.choice.sel{ border-color:var(--accent-line); background:var(--accent-soft); box-shadow:0 0 0 1px var(--accent-line); }
+.choice:disabled{ opacity:.45; cursor:default; }
+.choice h4{ margin:0 0 5px; font-size:14px; display:flex; align-items:center; gap:8px; }
+.choice p{ margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+.ob-foot{ display:flex; align-items:center; gap:10px; margin-top:26px; }
+.ob-foot .spacer{ flex:1; }
+.btn{ padding:10px 20px; border-radius:12px; font-size:13px; font-weight:600; border:1px solid var(--stroke); color:var(--muted); transition:.18s var(--ease); }
+.btn:hover{ color:var(--text); }
+.btn.primary{ color:#0b0b14; background:linear-gradient(150deg,rgb(var(--accent-rgb)),rgb(var(--accent2-rgb))); border-color:transparent; box-shadow:0 8px 22px var(--accent-glow); }
+.btn.ghost{ border-color:transparent; }
+.btn:disabled{ opacity:.4; cursor:default; box-shadow:none; }
+
+/* ============================== command palette ============================== */
+.cmd{ width:min(560px,92vw); margin-top:12vh; align-self:start; }
+.cmd input{ width:100%; padding:14px 16px; font-size:15px; background:none; border:none; outline:none; border-bottom:1px solid var(--stroke); }
+.cmd-list{ max-height:46vh; overflow:auto; padding:8px; }
+.cmd-item{ display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:var(--muted); }
+.cmd-item svg{ width:16px; height:16px; }
+.cmd-item .k{ margin-left:auto; font-size:10.5px; color:var(--muted-2); }
+.cmd-item.sel,.cmd-item:hover{ background:var(--accent-soft); color:var(--text); }
+
+/* ============================== toast ============================== */
+.flashbang{ position:fixed; inset:0; z-index:9999; background:#fff; opacity:0; pointer-events:none; transition:opacity .8s ease; }
+.flashbang.on{ opacity:1; transition:opacity .04s ease; }
+.flashbang.gentle{ background:radial-gradient(circle at 50% 42%, rgb(255 255 255/.95), rgb(255 255 255/.45) 58%, transparent 100%); }
+.flashbang.gentle.on{ opacity:1; transition:opacity .45s ease; }
+.ctx-menu{ position:fixed; z-index:9000; display:none; min-width:200px; padding:6px; border-radius:12px;
+  background:var(--panel-solid); border:1px solid var(--stroke-strong); box-shadow:var(--shadow); }
+.ctx-item{ display:block; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13px; color:var(--text); }
+.ctx-item:hover{ background:var(--accent-soft); }
+.toasts{ position:fixed; right:20px; bottom:20px; z-index:80; display:flex; flex-direction:column; gap:8px; }
+.toast{ padding:11px 15px; border-radius:12px; font-size:12.5px; background:var(--panel-solid); border:1px solid var(--stroke-strong);
+  box-shadow:var(--shadow); animation:pageIn .35s var(--ease); max-width:340px; }
+.toast.bad{ border-color:rgb(242 104 104/.4); }
+.empty{ color:var(--muted-2); font-size:12.5px; padding:22px 4px; text-align:center; }
+.spin{ display:inline-block; width:12px; height:12px; border:2px solid rgb(255 255 255/.2); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-1px; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+/* ECHO_NEXT_STYLES */
+</style>
+</head>
+<body data-theme="dark" data-motion="full" data-accent="dynamic">
+<div class="ambient" aria-hidden="true"><div class="layer" id="ambientA"></div><div class="layer" id="ambientB"></div></div>
+<div class="grid-lines" aria-hidden="true"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand" title="Echo">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M7 5h10M7 12h7M7 19h10" stroke="#0b0b14" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-btn active" data-page="dashboard" title="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="nav-btn" data-page="nowplaying" title="Now Playing">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.6"/></svg>
+        <span>Playing</span>
+      </button>
+      <button class="nav-btn" data-page="queue" title="Queue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l4 3-4 3z" fill="currentColor" stroke="none"/></svg>
+        <span>Queue</span>
+      </button>
+      <button class="nav-btn" data-page="browse" title="Browse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A1.5 1.5 0 015.5 4H10l2 2.5h6.5A1.5 1.5 0 0120 8v9.5A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5z"/></svg>
+        <span>Browse</span>
+      </button>
+      <button class="nav-btn" data-page="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1A1.6 1.6 0 006.6 19l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 13.6H3a2 2 0 110-4h.1A1.6 1.6 0 004.6 7L4.5 7a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 0010 3.1V3a2 2 0 114 0v.1a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8"/></svg>
+        <span>Setup</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="nav-btn" id="cmdBtn" title="Command palette (Ctrl+K)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span>Cmd</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg>
+        <input id="globalSearch" placeholder="Search songs, albums, artists, files..." autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="top-now" id="topNow">
+        <div class="thumb" id="topThumb"></div>
+        <div class="t"><b id="topTitle">Nothing playing</b><i id="topArtist">—</i></div>
+      </div>
+      <button class="chip" id="openOnboarding">Setup</button>
+    </header>
+
+    <div class="pages" id="pages">
+      <section class="page active" id="page-dashboard">
+        <div class="page-head"><h1>Dashboard</h1><p id="dashSub">A live view of your playback engine.</p></div>
+        <div class="dash-grid">
+          <section class="card card--hero" id="heroCard">
+            <div class="depth-stage" id="heroStage" data-depth-stage>
+              <div class="depth-art" data-layer="bg"></div>
+              <div class="depth-art" data-layer="fg"></div>
+              <div class="depth-sheen"></div>
+              <div class="depth-empty">No artwork</div>
+            </div>
+            <div class="hero-body">
+              <div class="card-label"><span class="dot"></span>Now Playing</div>
+              <h2 id="heroTitle">Nothing playing</h2>
+              <div class="artist" id="heroArtist">Load a track to begin</div>
+              <div class="album" id="heroAlbum"></div>
+              <div class="hero-badges" id="heroBadges"></div>
+              <div class="hero-spacer"></div>
+              <div class="hero-scrub">
+                <input class="seek" id="heroSeek" type="range" min="0" max="1000" value="0" />
+                <div class="time"><span id="heroTimeCur">0:00</span><span id="heroTimeDur">0:00</span></div>
+              </div>
+              <div class="hero-controls" id="heroControls"></div>
+            </div>
+          </section>
+
+          <section class="card card--pulse">
+            <div class="card-label"><span class="dot"></span>Library Pulse</div>
+            <div class="stat-grid">
+              <div class="stat"><b id="pulseTracks">0</b><span>Tracks</span></div>
+              <div class="stat"><b id="pulseAlbums">0</b><span>Albums</span></div>
+              <div class="stat"><b id="pulseArtists">0</b><span>Artists</span></div>
+              <div class="stat"><b id="pulseHours">0h</b><span>Total time</span></div>
+            </div>
+          </section>
+
+          <section class="card card--queue">
+            <div class="card-label"><span class="dot"></span>Up Next <span class="badge" id="queueCount">0</span></div>
+            <div class="list" id="queuePreview"></div>
+          </section>
+
+          <section class="card card--timeline">
+            <div class="card-label"><span class="dot"></span>Rolling Timeline <span class="badge" id="timelineMode">Gapless</span></div>
+            <div class="timeline" id="timeline"></div>
+          </section>
+
+          <section class="card card--quality">
+            <div class="card-label"><span class="dot"></span>Audio Quality</div>
+            <div id="qualityBody"></div>
+          </section>
+
+          <section class="card card--dsp">
+            <div class="card-label"><span class="dot"></span>Processing</div>
+            <div id="dspBody"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-nowplaying">
+        <div class="np-stage" id="npStage">
+          <div class="np-art np-art-bg" data-layer="bg"></div>
+          <div class="np-scrim"></div>
+          <div class="np-lyrics" id="npLyrics"></div>
+          <div class="np-ui">
+            <div class="np-meta">
+              <h2 id="npTitle">Nothing playing</h2>
+              <div class="np-sub" id="npArtist">—</div>
+              <div class="np-album" id="npAlbum"></div>
+            </div>
+            <div class="np-scrub">
+              <input class="seek" id="npSeek" type="range" min="0" max="1000" value="0" />
+              <div class="time"><span id="npTimeCur">0:00</span><span id="npTimeDur">0:00</span></div>
+            </div>
+            <div class="np-controls" id="npControls"></div>
+            <div class="np-dsp">
+              <button class="dsp-chip" id="npMono" data-act="mono">Mono downmix</button>
+              <button class="dsp-chip" id="npConcert" data-act="concert">Concert Hall</button>
+              <span class="dsp-speed">
+                <label for="npSpeed">Speed</label>
+                <input type="range" id="npSpeed" min="0.5" max="2" step="0.05" value="1" />
+                <b id="npSpeedVal">1.00x</b>
+              </span>
+            </div>
+          </div>
+          <div class="np-art np-art-fg" data-layer="fg"></div>
+          <div class="np-vignette"></div>
+          <div class="np-top">
+            <button class="np-close" id="npClose" title="Back to dashboard">← Back</button>
+            <div class="np-badges" id="npBadges"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-queue">
+        <div class="page-head"><h1>Queue</h1><p>Structured around the backend's real queue state.</p><div class="spacer"></div>
+          <button class="chip" id="queueFromLibrary">Queue whole library</button></div>
+        <div class="queue-wrap">
+          <section class="card">
+            <div class="queue-tools" id="queueTools"></div>
+            <div class="list" id="queueList"></div>
+          </section>
+          <section class="card">
+            <div class="card-label"><span class="dot"></span>Current</div>
+            <div id="queueNow"></div>
+            <div class="card-label" style="margin-top:20px;"><span class="dot"></span>Smart Shuffle</div>
+            <div class="hint" id="smartShuffleInfo">Smart shuffle biases selection toward tracks you have not played recently, using the persisted play history. The backend does not currently send a per-selection reason, so none is shown.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-browse">
+        <div class="page-head"><h1>Browse</h1><p id="browseSub">Different lenses over the same filtered collection.</p></div>
+        <div class="lenses" id="lenses"></div>
+        <div id="browseBody"></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-head"><h1>Setup</h1><p>Appearance and library. Every choice here is reversible.</p></div>
+        <div class="settings-grid">
+          <section class="card">
+            <div class="card-label">Artwork depth</div>
+            <h2>Let the artwork step forward.</h2>
+            <p class="hint">A static foreground cutout sits in front of lyrics, without moving the artwork or covering playback controls. Depth estimation is not perfect on every cover.</p>
+            <div class="depth-control-row"><input type="checkbox" id="depthEnabled" checked /><label for="depthEnabled">Enable artwork depth</label></div>
+            <div class="depth-control-row"><input type="checkbox" id="depthAuto" checked /><label for="depthAuto">Choose the foreground automatically</label></div>
+            <div class="field"><label for="depthThreshold">Foreground cutoff · higher shows less</label><div class="depth-control-row"><input type="range" id="depthThreshold" min="10" max="95" value="58" disabled /><output id="depthThresholdValue" for="depthThreshold">58%</output></div></div>
+            <p class="hint" id="depthStatus" role="status">Play a track to prepare its artwork.</p>
+            <button class="opt" id="retryDepth" disabled>Retry artwork depth</button>
+          </section>
+          <section class="card">
+            <div class="card-label"><span class="dot"></span>Appearance</div>
+            <div class="field"><label>Theme</label><div class="opts" id="themeOpts"></div></div>
+            <div class="field"><label>Accent</label><div class="opts" id="accentOpts"></div></div>
+            <div class="field"><label>Motion</label><div class="opts" id="motionOpts"></div></div>
+            <div class="field"><label>Lyrics</label><div class="opts" id="lyricsOpts"></div></div>
+            <div class="field"><label>Light-mode flashbang</label><div class="opts" id="flashbangOpts"></div></div>
+            <div class="hint">Appearance is a frontend preference (stored locally). The backend settings file holds playback, queue, and compositor state.</div>
+          </section>
+          <section class="card">
+            <div class="card-label"><span class="dot"></span>Library</div>
+            <div class="field"><label>Music folder</label>
+              <input class="text-input" id="settingsLibraryPath" placeholder="/home/you/Music" spellcheck="false" />
+              <div class="opts" style="margin-top:10px;">
+                <button class="opt" id="settingsScan">Set &amp; scan</button>
+                <button class="opt" id="settingsRescan">Rescan</button>
+              </div>
+            </div>
+            <div class="hint" id="settingsLibraryInfo">The webview cannot open a native folder picker, so paste or type the folder path. Scanning runs on a background worker.</div>
+          </section>
+          <section class="card">
+            <div class="card-label"><span class="dot"></span>Playback</div>
+            <div class="field"><label>Smart shuffle bias</label>
+              <div class="dsp-speed" style="gap:12px;">
+                <input type="range" id="smartBias" min="0" max="1" step="0.05" value="1" style="width:220px; accent-color:var(--accent);" />
+                <b id="smartBiasVal" style="font-variant-numeric:tabular-nums;">1.00</b>
+              </div>
+              <div class="hint" id="smartBiasHint">0.00 = pure random · 1.00 = strongly favor tracks you have not played recently. Applied to smart shuffle.</div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <footer class="playerbar">
+      <div class="pb-left">
+        <div class="thumb" id="pbThumb"></div>
+        <div class="t"><b id="pbTitle">Nothing playing</b><i id="pbArtist">—</i></div>
+      </div>
+      <div class="pb-center">
+        <div class="pb-controls" id="pbControls"></div>
+        <input class="seek" id="pbSeek" type="range" min="0" max="1000" value="0" />
+      </div>
+      <div class="pb-right">
+        <span class="time" id="pbTimes" style="margin-right:6px;">0:00 / 0:00</span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="overlay" id="onboarding">
+  <div class="modal">
+    <div class="ob-head">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" width="24" height="24"><path d="M7 5h10M7 12h7M7 19h10" stroke="#0b0b14" stroke-width="2.6" stroke-linecap="round"/></svg></div>
+      <div><h2>Welcome to Echo</h2><p>Three quick choices, then straight to your library.</p></div>
+      <div class="ob-dots" id="obDots"><i class="on"></i><i></i><i></i></div>
+    </div>
+
+    <div class="ob-step on" data-ob="0">
+      <h3 style="margin:0 0 4px;">Track transitions</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 16px;">How should one track hand off to the next?</p>
+      <div class="choice-grid">
+        <button class="choice sel" data-transition="gapless">
+          <h4>Gapless <span class="badge accent">Default</span></h4>
+          <p>Tracks meet directly with no intentional overlap. This is what the current engine actually does.</p>
+        </button>
+        <button class="choice" data-transition="crossfade" disabled>
+          <h4>Crossfade <span class="badge off">Not available</span></h4>
+          <p>Overlaps the end of one track with the start of the next. The crossfade engine is not implemented in this build, so it cannot be selected.</p>
+        </button>
+      </div>
+    </div>
+
+    <div class="ob-step" data-ob="1">
+      <h3 style="margin:0 0 4px;">Appearance</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 16px;">A dark glassmorphic base, with a dynamic accent drawn from the current artwork.</p>
+      <div class="field"><label>Theme</label><div class="opts" data-ob-group="theme">
+        <button class="opt active" data-val="dark">Dark</button>
+        <button class="opt" data-val="oled">OLED</button>
+        <button class="opt" data-val="light">Light</button>
+        <button class="opt" data-val="system">System</button>
+      </div></div>
+      <div class="field"><label>Accent</label><div class="opts" data-ob-group="accent">
+        <button class="opt active" data-val="dynamic">Dynamic (from art)</button>
+        <button class="opt" data-val="static">Static</button>
+      </div></div>
+      <div class="field"><label>Motion</label><div class="opts" data-ob-group="motion">
+        <button class="opt active" data-val="full">Full</button>
+        <button class="opt" data-val="reduced">Reduced</button>
+        <button class="opt" data-val="minimal">Minimal</button>
+      </div></div>
+    </div>
+
+    <div class="ob-step" data-ob="2">
+      <h3 style="margin:0 0 4px;">Your music folder</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 16px;">Echo indexes this folder locally. Nothing leaves your machine.</p>
+      <div class="field">
+        <input class="text-input" id="obLibraryPath" placeholder="/home/you/Music" spellcheck="false" />
+        <div class="opts" style="margin-top:10px;">
+          <button class="opt" id="obScan">Choose &amp; scan</button>
+        </div>
+      </div>
+      <div class="hint" id="obScanInfo">The webview cannot open a native folder picker, so type the path. You can change it later in Setup.</div>
+    </div>
+
+    <div class="ob-foot">
+      <button class="btn ghost" id="obBack">Back</button>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="obSkip">Skip</button>
+      <button class="btn primary" id="obNext">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="palette">
+  <div class="modal cmd">
+    <input id="cmdInput" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
+    <div class="cmd-list" id="cmdList"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="ctx-menu" id="ctxMenu"></div>
+
+<script>
+/* ECHO_NEXT_DEPTH */
+"use strict";
+
+/* ============================== helpers ============================== */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtTime = (ms) => {
+  ms = Math.max(0, Number(ms) || 0);
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
+  if (h > 0) return h + ":" + String(m % 60).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  return m + ":" + String(s % 60).padStart(2, "0");
+};
+const baseName = (p) => String(p || "").split(/[\\/]/).pop() || "";
+const dirName = (p) => { const s = String(p || ""); const i = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\")); return i > 0 ? s.slice(0, i) : ""; };
+const extOf = (p) => { const b = baseName(p); const i = b.lastIndexOf("."); return i >= 0 ? b.slice(i + 1).toLowerCase() : ""; };
+const LOSSLESS = ["flac", "wav", "aiff", "aif", "ape", "wv", "alac"];
+
+const store = (() => {
+  let mem = {};
+  let ok = true;
+  try { localStorage.setItem("__echo_t", "1"); localStorage.removeItem("__echo_t"); } catch (e) { ok = false; }
+  return {
+    get(k, d) { try { const v = ok ? localStorage.getItem(k) : mem[k]; return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { const s = JSON.stringify(v); if (ok) localStorage.setItem(k, s); else mem[k] = s; } catch (e) {} }
+  };
+})();
+
+const ICONS = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5.5" width="3.6" height="13" rx="1.2"/><rect x="13.4" y="5.5" width="3.6" height="13" rx="1.2"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5.5h2.4v13H7zM19 6v12l-8.5-6z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14.6 5.5H17v13h-2.4zM5 6l8.5 6L5 18z"/></svg>',
+  shuffle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>',
+  queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h11M4 12h11M4 18h7"/><path d="M17 15l4 3-4 3z" fill="currentColor" stroke="none"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A1.5 1.5 0 015.5 4H10l2 2.5h6.5A1.5 1.5 0 0120 8v9.5A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5z"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>'
+};
+
+/* ============================== state ============================== */
+const Echo = {
+  state: null,
+  library: [],
+  byPath: new Map(),
+  page: "dashboard",
+  lens: "songs",
+  filter: "",
+  draggingSeek: false,
+  curTrack: undefined,
+  maskPath: undefined,
+  artOk: false,
+  onboarded: false,
+  appearance: store.get("echo-next.appearance", { theme: "dark", accent: "dynamic", motion: "full", lyrics: "left", flashbang: "flash" }),
+  ob: { step: 0, transition: "gapless", theme: "dark", accent: "dynamic", motion: "full", scanning: false, scanned: false },
+  ambientFlip: false,
+  accentCache: new Map(),
+  _libVer: 0,
+  lyrics: [],
+  _lyricIdx: -1,
+  _lyricTrack: null
+};
+
+function send(cmd, arg) {
+  const msg = { cmd: cmd };
+  if (arg !== undefined) msg.arg = arg;
+  try { window.ipc.postMessage(JSON.stringify(msg)); } catch (e) { console.error("ipc failed", e); }
+}
+
+const dpr = () => Math.min(2, window.devicePixelRatio || 1);
+const artUrl = (p, w, h) => {
+  if (!p) return "";
+  let u = "echo://art/?path=" + encodeURIComponent(p);
+  if (w && h) u += "&w=" + Math.round(w) + "&h=" + Math.round(h);
+  return u;
+};
+const maskUrl = (p, w, h) => {
+  if (!p) return "";
+  let u = "echo://mask/?path=" + encodeURIComponent(p);
+  if (w && h) u += "&w=" + Math.round(w) + "&h=" + Math.round(h);
+  return u;
+};
+const subjectUrl = (art, mask, w, h) => {
+  if (!art || !mask) return "";
+  let u = "echo://subject/?path=" + encodeURIComponent(art) + "&mask=" + encodeURIComponent(mask);
+  if (w && h) u += "&w=" + Math.round(w) + "&h=" + Math.round(h);
+  if (Number.isFinite(Echo.appearance.depthThreshold)) u += "&threshold=" + Echo.appearance.depthThreshold;
+  return u;
+};
+const THUMB = 80, TOP_THUMB = 64, PB_THUMB = 96, COVER = 320, AMBIENT = 512;
+const sfxUrl = (name) => "echo://sfx/" + encodeURIComponent(name);
+
+function trackFor(path) { return path ? Echo.byPath.get(path) : null; }
+function titleFor(path) { const t = trackFor(path); return t ? t.title : (path ? baseName(path) : "Nothing playing"); }
+function artistFor(path) { const t = trackFor(path); return t && t.artist ? t.artist : (path ? "Unknown artist" : "—"); }
+function albumFor(path) { const t = trackFor(path); return t && t.album ? t.album : ""; }
+
+/* ============================== toasts ============================== */
+function toast(msg, bad) {
+  const el = document.createElement("div");
+  el.className = "toast" + (bad ? " bad" : "");
+  el.textContent = msg;
+  $("#toasts").appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .4s"; setTimeout(() => el.remove(), 420); }, 3800);
+}
+
+/* ============================== appearance ============================== */
+function applyAppearance() {
+  const a = Echo.appearance;
+  let theme = a.theme;
+  if (theme === "system") theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+  const prevTheme = Echo._appliedTheme;
+  Echo._appliedTheme = theme;
+  if (theme === "light" && prevTheme && prevTheme !== "light") triggerFlashbang();
+  document.body.dataset.theme = theme;
+  document.body.dataset.motion = a.motion;
+  document.body.dataset.accent = a.accent;
+  const ly = $("#npLyrics");
+  if (ly) {
+    ly.classList.remove("pos-left", "pos-center", "pos-right", "pos-off");
+    ly.classList.add("pos-" + (a.lyrics || "left"));
+  }
+  if (a.accent !== "dynamic") applyAccentRgb([139, 124, 255]);
+  else if (Echo.state && Echo.state.current_track) updateAccent(Echo.state.current_track);
+  renderSettings();
+}
+function applyAccentRgb(rgb) {
+  const root = document.documentElement;
+  root.style.setProperty("--accent-rgb", rgb.join(" "));
+  const a2 = [Math.min(255, Math.round(rgb[0] * 0.55 + 40)), Math.min(255, Math.round(rgb[1] * 0.55 + 95)), Math.min(255, Math.round(rgb[2] * 0.55 + 180))];
+  root.style.setProperty("--accent2-rgb", a2.join(" "));
+}
+let _fbCtx = null;
+function triggerFlashbang() {
+  const mode = Echo.appearance.flashbang || "flash";
+  if (mode === "off" || Echo.appearance.motion === "minimal") return;
+  const hard = mode === "flash" && Echo.appearance.motion !== "reduced";
+  const playSound = mode === "flash";
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) { showFlash(0.6, hard); return; }
+  try { if (!_fbCtx) _fbCtx = new Ctx(); } catch (e) { showFlash(0.6, hard); return; }
+  fetch(sfxUrl("flashbang"))
+    .then((r) => r.arrayBuffer())
+    .then((buf) => _fbCtx.decodeAudioData(buf))
+    .then((decoded) => {
+      const dur = decoded.duration || 0.6;
+      if (playSound) {
+        const src = _fbCtx.createBufferSource();
+        src.buffer = decoded;
+        const gain = _fbCtx.createGain();
+        gain.gain.value = 0.55;
+        src.connect(gain).connect(_fbCtx.destination);
+        src.start();
+      }
+      showFlash(dur, hard);
+    })
+    .catch(() => showFlash(0.6, hard));
+}
+function showFlash(dur, hard) {
+  const el = document.createElement("div");
+  el.className = "flashbang" + (hard ? "" : " gentle");
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("on"));
+  const holdMs = Math.max(60, Math.min(3000, dur * 1000));
+  setTimeout(() => {
+    el.classList.remove("on");
+    setTimeout(() => el.remove(), 900);
+  }, holdMs);
+}
+function adjustColor(c) {
+  let [r, g, b] = c;
+  const max = Math.max(r, g, b);
+  if (max < 150 && max > 0) { const k = 150 / max; r *= k; g *= k; b *= k; }
+  return [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))));
+}
+function updateAccent(path) {
+  if (Echo.appearance.accent !== "dynamic") return;
+  if (!path) return;
+  if (Echo.accentCache.has(path)) { applyAccentRgb(Echo.accentCache.get(path)); return; }
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = c.height = 28;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, 28, 28);
+      const d = ctx.getImageData(0, 0, 28, 28).data;
+      let best = null, bestScore = -1;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200) continue;
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx === 0 ? 0 : (mx - mn) / mx;
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const score = sat * 1.5 + (1 - Math.abs(lum - 0.55)) * 0.5;
+        if (score > bestScore) { bestScore = score; best = [r, g, b]; }
+      }
+      if (best) { const rgb = adjustColor(best); Echo.accentCache.set(path, rgb); applyAccentRgb(rgb); }
+    } catch (e) { /* opaque/cross-origin canvas: keep the brand accent */ }
+  };
+  img.src = artUrl(path, 256, 256);
+}
+
+/* ============================== ambient ============================== */
+function setAmbient(url) {
+  const a = $("#ambientA"), b = $("#ambientB");
+  const show = Echo.ambientFlip ? a : b;
+  const hide = Echo.ambientFlip ? b : a;
+  show.style.backgroundImage = url ? 'url("' + url + '")' : "none";
+  show.classList.add("on");
+  hide.classList.remove("on");
+  Echo.ambientFlip = !Echo.ambientFlip;
+}
+
+/* ============================== depth stage ============================== */
+function stageTargetSize(stage) {
+  const r = stage.getBoundingClientRect();
+  const scale = dpr();
+  const w = r.width > 20 ? r.width : 0;
+  const h = r.height > 20 ? r.height : 0;
+  if (!w || !h) return { w: 512, h: 512 };
+  return {
+    w: Math.min(1600, Math.max(64, Math.round(w * scale))),
+    h: Math.min(1600, Math.max(64, Math.round(h * scale)))
+  };
+}
+function configureStage(id, artPath, maskPath) {
+  const stage = $(id);
+  if (!stage) return;
+  if (!stage._depthRenderer) stage._depthRenderer = new EchoDepthStage(stage, () => {
+    if (Echo.page === "dashboard") renderHero();
+    if (Echo.page === "nowplaying") renderNowPlaying();
+    renderDepthSettings();
+  });
+  const size = stageTargetSize(stage);
+  const art = artPath ? artUrl(artPath, size.w, size.h) : "";
+  const subject = artPath && maskPath && Echo.appearance.depthEnabled !== false ? subjectUrl(artPath, maskPath, size.w, size.h) : "";
+  stage._depthRenderer.update(art, subject);
+}
+function refreshStages() {
+  const s = Echo.state || {};
+  configureStage("#heroStage", s.current_track, s.depth_mask_path);
+  configureStage("#npStage", s.current_track, s.depth_mask_path);
+}
+
+/* ============================== badges ============================== */
+function qualityBadges(t) {
+  const out = [];
+  if (!t) return out;
+  const ext = extOf(t.path);
+  if (ext) out.push('<span class="badge">' + esc(ext.toUpperCase()) + "</span>");
+  if (t.bit_depth) out.push('<span class="badge">' + t.bit_depth + "-bit</span>");
+  if (t.sample_rate) out.push('<span class="badge">' + (t.sample_rate / 1000).toFixed(t.sample_rate % 1000 ? 1 : 0) + " kHz</span>");
+  if (LOSSLESS.indexOf(ext) >= 0) out.push('<span class="badge accent">Lossless</span>');
+  return out;
+}
+function depthBadge(s, t) {
+  if (!s.current_track) return "";
+  if (Echo.appearance.depthEnabled === false) return '<span class="badge">Flat artwork</span>';
+  const stage = $(Echo.page === "nowplaying" ? "#npStage" : "#heroStage");
+  if (s.depth_mask_path && stage.dataset.depthState === "ready") return '<span class="badge accent">' + ICONS.sparkle + " Depth</span>";
+  if (s.depth_status === "error" || stage.dataset.depthState === "error") return '<span class="badge">Depth unavailable · retry in Setup</span>';
+  if (s.depth_status === "no_art") return '<span class="badge">No artwork</span>';
+  if (s.depth_status === "loading_model") return '<span class="badge pending">Preparing depth model</span>';
+  if (s.depth_mask_path || ["queued", "computing"].includes(s.depth_status)) return '<span class="badge pending">Preparing depth</span>';
+  return '<span class="badge">Flat artwork</span>';
+}
+function dspBadges(s) {
+  const out = [];
+  if (s.concert_hall_enabled && s.dsp_concert_hall_available) out.push('<span class="badge accent">Concert Hall</span>');
+  if (s.mono_downmix) out.push('<span class="badge accent">Mono</span>');
+  if (s.speed !== 1) out.push('<span class="badge accent">' + Number(s.speed).toFixed(2) + "x</span>");
+  return out;
+}
+
+/* ============================== transport controls ============================== */
+function transportHTML(s) {
+  const playIcon = s.playing ? ICONS.pause : ICONS.play;
+  const shuffle = s.shuffle ? " on" : "";
+  const smart = s.smart_shuffle ? " on" : "";
+  const repeat = s.repeat || "Off";
+  const repeatOn = repeat !== "Off" ? " on" : "";
+  return '' +
+    '<button class="icon-btn' + shuffle + '" data-act="shuffle" title="Shuffle">' + ICONS.shuffle + "</button>" +
+    '<button class="icon-btn" data-act="prev" title="Previous">' + ICONS.prev + "</button>" +
+    '<button class="icon-btn primary" data-act="playpause" title="Play/Pause">' + playIcon + "</button>" +
+    '<button class="icon-btn" data-act="next" title="Next">' + ICONS.next + "</button>" +
+    '<button class="icon-btn' + repeatOn + '" data-act="repeat" title="Repeat: ' + esc(repeat) + '">' + ICONS.repeat +
+      (repeat === "One" ? '<span class="repeat-badge">1</span>' : (repeat === "All" ? '<span class="repeat-badge">A</span>' : "")) + "</button>" +
+    '<button class="icon-btn' + smart + '" data-act="smart" title="Smart shuffle">' + ICONS.sparkle + "</button>";
+}
+function wireTransport() {
+  // One delegated listener on the document instead of per-container listeners:
+  // transport controls are re-rendered on state changes, so delegation can't
+  // be lost or double-bound by a re-render.
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const s = Echo.state || {};
+    switch (b.dataset.act) {
+      case "playpause": send(s.playing ? "pause" : "play"); break;
+      case "prev": send("prev"); break;
+      case "next": send("next"); break;
+      case "shuffle": send("set_shuffle", !s.shuffle); break;
+      case "smart": send("set_smart_shuffle", !s.smart_shuffle); break;
+      case "repeat": send("cycle_repeat"); break;
+      case "mono": send("set_mono_downmix", !s.mono_downmix); break;
+      case "concert": send("set_concert_hall", !s.concert_hall_enabled); break;
+      case "speedcycle": {
+        const steps = [0.5, 0.75, 1, 1.25, 1.5, 2];
+        const cur = Number(s.speed) || 1;
+        const i = steps.indexOf(cur);
+        send("set_speed", steps[(i + 1) % steps.length]);
+        break;
+      }
+    }
+  });
+}
+
+/* ============================== seek ============================== */
+function bindSeek(el) {
+  const release = () => {
+    const s = Echo.state || {};
+    const dur = s.duration_ms || 0;
+    if (Echo.activeSeek === el) Echo.activeSeek = null;
+    if (dur) send("seek", Math.round(el.value / 1000 * dur));
+  };
+  el.addEventListener("pointerdown", () => { Echo.activeSeek = el; });
+  el.addEventListener("input", () => { updateSeekFill(el); });
+  el.addEventListener("change", release);
+  // If the pointer is released outside the slider, `change` may not fire, so
+  // also clear the active flag (deferred so it can't beat `change`).
+  el.addEventListener("pointerup", () => setTimeout(() => { if (Echo.activeSeek === el) Echo.activeSeek = null; }, 0));
+  el.addEventListener("pointercancel", () => { if (Echo.activeSeek === el) Echo.activeSeek = null; });
+}
+function updateSeekFill(el) {
+  el.style.setProperty("--seek", (el.value / 10) + "%");
+}
+function setHTML(el, key, html) {
+  if (!el || el._htmlKey === key) return false;
+  el._htmlKey = key;
+  el.innerHTML = html;
+  return true;
+}
+function transportKey(s) {
+  return [s.playing ? 1 : 0, s.shuffle ? 1 : 0, s.smart_shuffle ? 1 : 0, s.repeat || "Off"].join("|");
+}
+function renderSeek(el, curEl, durEl, s) {
+  const pos = s.position_ms || 0, dur = s.duration_ms || 0;
+  if (Echo.activeSeek !== el) {
+    el.value = dur ? Math.min(1000, Math.round(pos / dur * 1000)) : 0;
+    el.disabled = !dur;
+    updateSeekFill(el);
+  }
+  if (curEl) curEl.textContent = fmtTime(pos);
+  if (durEl) durEl.textContent = fmtTime(dur);
+}
+
+/* ============================== rendering ============================== */
+function renderTopNow() {
+  const s = Echo.state || {};
+  $("#topThumb").style.backgroundImage = s.current_track && Echo.artOk ? 'url("' + artUrl(s.current_track, TOP_THUMB, TOP_THUMB) + '")' : "none";
+  $("#topTitle").textContent = s.current_track ? titleFor(s.current_track) : "Nothing playing";
+  $("#topArtist").textContent = s.current_track ? artistFor(s.current_track) : "—";
+  const pb = s.current_track && Echo.artOk ? 'url("' + artUrl(s.current_track, PB_THUMB, PB_THUMB) + '")' : "none";
+  $("#pbThumb").style.backgroundImage = pb;
+  $("#pbTitle").textContent = s.current_track ? titleFor(s.current_track) : "Nothing playing";
+  $("#pbArtist").textContent = s.current_track ? artistFor(s.current_track) : "—";
+  $("#pbTimes").textContent = fmtTime(s.position_ms || 0) + " / " + fmtTime(s.duration_ms || 0);
+}
+function renderPlayerBar() {
+  const s = Echo.state || {};
+  setHTML($("#pbControls"), "t|" + transportKey(s), transportHTML(s));
+  renderSeek($("#pbSeek"), null, null, s);
+}
+function renderHero() {
+  const s = Echo.state || {};
+  const t = trackFor(s.current_track);
+  $("#heroTitle").textContent = s.current_track ? titleFor(s.current_track) : "Nothing playing";
+  $("#heroArtist").textContent = s.current_track ? artistFor(s.current_track) : "Load a track to begin";
+  $("#heroAlbum").textContent = albumFor(s.current_track);
+  const badges = qualityBadges(t).concat(depthBadge(s, t)).concat(dspBadges(s));
+  setHTML($("#heroBadges"), "hb|" + badges.join(","), badges.join(""));
+  setHTML($("#heroControls"), "t|" + transportKey(s), transportHTML(s));
+  renderSeek($("#heroSeek"), $("#heroTimeCur"), $("#heroTimeDur"), s);
+}
+function renderPulse() {
+  const lib = Echo.library;
+  const tracks = lib.length || (Echo.state ? Echo.state.library_count : 0);
+  const albums = new Set(), artists = new Set();
+  let totalMs = 0;
+  lib.forEach((t) => { albums.add(t.album || "?"); artists.add(t.artist || "?"); totalMs += t.duration_ms || 0; });
+  const key = "p|" + Echo._libVer + "|" + tracks;
+  if ($("#pulseTracks")._pulseKey === key) return;
+  $("#pulseTracks")._pulseKey = key;
+  $("#pulseTracks").textContent = tracks;
+  $("#pulseAlbums").textContent = albums.size;
+  $("#pulseArtists").textContent = artists.size;
+  $("#pulseHours").textContent = (totalMs / 3600000).toFixed(totalMs > 36000000 ? 0 : 1) + "h";
+  $("#dashSub").textContent = tracks ? tracks + " indexed tracks. A live view of your playback engine." : "No library indexed yet — open Setup to choose a folder.";
+}
+function renderTimeline() {
+  const s = Echo.state || {};
+  const el = $("#timeline");
+  const cur = s.current_track;
+  if (!cur) { setHTML(el, "empty", '<div class="timeline-empty">Load a track to see the rolling timeline.</div>'); return; }
+  const dur = s.duration_ms || (trackFor(cur) ? trackFor(cur).duration_ms : 0) || 1;
+  const segs = [];
+  const posPct = Math.max(0, Math.min(100, (s.position_ms || 0) / dur * 100));
+  segs.push('<div class="tl-seg current" style="flex-grow:' + Math.max(6, dur / 1000) + '">' +
+    '<div class="fill" style="width:' + posPct + '%"></div>' +
+    '<div class="num">NOW</div><div class="lab">' + esc(titleFor(cur)) + "</div></div>");
+  (s.upcoming || []).forEach((u, i) => {
+    const d = u.duration_ms || 1;
+    segs.push('<div class="tl-seg" style="flex-grow:' + Math.max(6, d / 1000) + '" data-path="' + esc(u.path) + '" title="Play now: ' + esc(titleFor(u.path)) + '">' +
+      '<div class="num">' + (i + 1) + "</div><div class=\"lab\">" + esc(titleFor(u.path)) + "</div></div>");
+  });
+  const key = "tl|" + cur + "|" + (s.upcoming || []).map((u) => u.path + u.duration_ms).join(",");
+  if (setHTML(el, key, segs.join(""))) {
+    $$(".tl-seg[data-path]", el).forEach((seg) => seg.addEventListener("click", () => send("load_and_play", seg.dataset.path)));
+  }
+  // Live progress: the fill width must advance every tick, so update it
+  // directly (single-element style write) rather than inside the memoized
+  // HTML, whose key omits position_ms (which froze the fill on track change).
+  const fillEl = el.querySelector(".tl-seg.current .fill");
+  if (fillEl) fillEl.style.width = posPct + "%";
+  $("#timelineMode").textContent = "Gapless · crossfade not built";
+}
+function renderQueuePreview() {
+  const s = Echo.state || {};
+  const el = $("#queuePreview");
+  $("#queueCount").textContent = s.queue_len || 0;
+  const up = s.upcoming || [];
+  if (!s.current_track) { setHTML(el, "empty", '<div class="empty">Queue is empty.</div>'); return; }
+  const rows = [];
+  up.forEach((u, i) => {
+    rows.push('<div class="row" data-path="' + esc(u.path) + '">' +
+      '<span class="idx">' + (i + 1) + "</span>" +
+      '<img class="rthumb" loading="lazy" decoding="async" src="' + artUrl(u.path, THUMB, THUMB) + '" alt="" />' +
+      '<span class="rmeta"><b>' + esc(titleFor(u.path)) + "</b><i>" + esc(artistFor(u.path)) + "</i></span>" +
+      '<span class="rtime">' + fmtTime(u.duration_ms || 0) + "</span></div>");
+  });
+  const key = "qp|" + up.map((u) => u.path).join(",");
+  if (up.length) {
+    if (setHTML(el, key, rows.join(""))) {
+      $$(".row[data-path]", el).forEach((r) => r.addEventListener("dblclick", () => send("load_and_play", r.dataset.path)));
+    }
+  } else setHTML(el, "empty", '<div class="empty">Nothing queued after this track.</div>');
+}
+function renderQuality() {
+  const el = $("#qualityBody");
+  const lib = Echo.library;
+  if (!lib.length) { setHTML(el, "empty", '<div class="empty">Index a library to see real format data.</div>'); return; }
+  const counts = {};
+  let lossless = 0, hires = 0;
+  lib.forEach((t) => {
+    const e = extOf(t.path) || "?";
+    counts[e] = (counts[e] || 0) + 1;
+    if (LOSSLESS.indexOf(e) >= 0) lossless++;
+    if (t.sample_rate && t.sample_rate >= 96000) hires++;
+  });
+  const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 5);
+  const max = Math.max.apply(null, top.map((k) => counts[k]).concat([1]));
+  let html = '<div class="hint" style="margin:0 0 12px;">' + lossless + " lossless · " + hires + " hi-res (≥96 kHz) · " + lib.length + " total</div>";
+  top.forEach((k) => {
+    const pct = Math.round(counts[k] / max * 100);
+    html += '<div style="margin-bottom:9px;cursor:pointer;" data-format="' + esc(k) + '">' +
+      '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px;"><span>' + esc(k.toUpperCase()) + '</span><span style="color:var(--muted-2)">' + counts[k] + "</span></div>" +
+      '<div style="height:6px;border-radius:20px;background:rgb(255 255 255/.08);overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--accent);border-radius:20px;"></div></div></div>';
+  });
+  if (setHTML(el, "q|" + Echo._libVer, html)) {
+    $$("[data-format]", el).forEach((n) => n.addEventListener("click", () => { Echo.lens = "songs"; Echo.filter = n.dataset.format; $("#globalSearch").value = n.dataset.format; setPage("browse"); }));
+  }
+}
+function renderDspCard() {
+  const s = Echo.state || {};
+  const el = $("#dspBody");
+  const rows = [
+    { name: "Speed", on: s.speed !== 1, avail: s.dsp_speed_available, detail: Number(s.speed).toFixed(2) + "x", act: "speedcycle" },
+    { name: "Mono downmix", on: s.mono_downmix, avail: true, detail: "", act: "mono" },
+    { name: "Concert Hall", on: s.concert_hall_enabled, avail: s.dsp_concert_hall_available, detail: "", act: "concert" }
+  ];
+  const html = rows.map((r) =>
+    '<div class="chain"><div class="stage' + (r.on && r.avail ? " on" : "") + (r.avail ? "" : " dis") + '" data-act="' + r.act + '" title="Toggle">' +
+    '<span class="sdot"></span><span class="sname">' + esc(r.name) + "</span>" +
+    '<span class="sstate">' + (!r.avail ? "Unavailable" : (r.on ? esc(r.detail || "On") : "Off")) + "</span></div></div>"
+  ).join("");
+  setHTML(el, "dsp|" + [s.speed, s.mono_downmix, s.concert_hall_enabled, s.dsp_speed_available, s.dsp_concert_hall_available].join("|"), html);
+}
+function renderDashboard() {
+  renderHero();
+  renderPulse();
+  renderTimeline();
+  renderQueuePreview();
+  renderQuality();
+  renderDspCard();
+}
+
+/* ============================== now playing ============================== */
+function renderNowPlaying() {
+  const s = Echo.state || {};
+  const t = trackFor(s.current_track);
+  $("#npTitle").textContent = s.current_track ? titleFor(s.current_track) : "Nothing playing";
+  $("#npArtist").textContent = s.current_track ? artistFor(s.current_track) : "—";
+  $("#npAlbum").textContent = albumFor(s.current_track);
+  const badges = qualityBadges(t).concat(depthBadge(s, t)).concat(dspBadges(s));
+  setHTML($("#npBadges"), "nb|" + badges.join(","), badges.join(""));
+  setHTML($("#npControls"), "t|" + transportKey(s), transportHTML(s));
+  renderSeek($("#npSeek"), $("#npTimeCur"), $("#npTimeDur"), s);
+  renderDspControls();
+  renderLyrics();
+}
+
+function renderDspControls() {
+  const s = Echo.state || {};
+  const mono = $("#npMono");
+  if (mono) mono.classList.toggle("on", !!s.mono_downmix);
+  const concert = $("#npConcert");
+  if (concert) {
+    concert.classList.toggle("on", !!s.concert_hall_enabled);
+    concert.disabled = !s.dsp_concert_hall_available;
+    concert.title = s.dsp_concert_hall_available ? "Concert Hall (reverb + crossfeed)" : "Unavailable (missing GStreamer plugins)";
+  }
+  const sp = $("#npSpeed");
+  if (sp) {
+    sp.disabled = !s.dsp_speed_available;
+    if (document.activeElement !== sp) sp.value = s.speed;
+    const val = $("#npSpeedVal");
+    if (val) val.textContent = Number(s.speed || 1).toFixed(2) + "x";
+  }
+}
+function bindSpeed(el) {
+  if (!el) return;
+  el.addEventListener("input", () => { const v = $("#npSpeedVal"); if (v) v.textContent = Number(el.value).toFixed(2) + "x"; });
+  el.addEventListener("change", () => send("set_speed", Number(el.value)));
+}
+
+/* ============================== lyrics ============================== */
+// Temporary test mapping: the user's HOLIC file has no same-name .lrc, so
+// point it at the standalone lyrics file for now. A real implementation
+// would discover sidecar `<stem>.lrc` (which lyricsPathFor already tries).
+const LRC_OVERRIDE = {
+  "/home/user/嘘HOLIC (feat. 初音ミク) [LkW_aRJJeyQ].mp3":
+    "/home/user/yuugen - Lieholic (feat. HATSUNE MIKU).lrc"
+};
+const lrcUrl = (p) => (p ? "echo://lrc/?path=" + encodeURIComponent(p) : "");
+
+function lyricsPathFor(trackPath) {
+  if (!trackPath) return null;
+  if (LRC_OVERRIDE[trackPath]) return LRC_OVERRIDE[trackPath];
+  const dot = trackPath.lastIndexOf(".");
+  return dot > 0 ? trackPath.slice(0, dot) + ".lrc" : null;
+}
+function parseLrc(text) {
+  const out = [];
+  text.split(/\r?\n/).forEach((line) => {
+    const m = line.match(/^\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\](.*)$/);
+    if (!m) return;
+    const frac = m[3] ? Number((m[3] + "00").slice(0, 3)) : 0;
+    const t = Number(m[1]) * 60000 + Number(m[2]) * 1000 + frac;
+    const txt = m[4].trim();
+    if (txt) out.push({ t: t, text: txt });
+  });
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+function loadLyrics(trackPath) {
+  Echo.lyrics = [];
+  Echo._lyricIdx = -1;
+  Echo._lyricTrack = trackPath || null;
+  const path = lyricsPathFor(trackPath);
+  if (!path) { renderLyrics(); return; }
+  fetch(lrcUrl(path))
+    .then((r) => (r.ok ? r.text() : ""))
+    .then((text) => {
+      if (Echo._lyricTrack !== trackPath) return;
+      Echo.lyrics = text ? parseLrc(text) : [];
+      Echo._lyricIdx = -1;
+      renderLyrics();
+    })
+    .catch(() => { Echo.lyrics = []; renderLyrics(); });
+}
+function renderLyrics() {
+  const el = $("#npLyrics");
+  if (!el) return;
+  const lines = Echo.lyrics || [];
+  if (!lines.length) { if (el.innerHTML) el.innerHTML = ""; return; }
+  const pos = (Echo.state && Echo.state.position_ms) || 0;
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].t <= pos) idx = i;
+    else break;
+  }
+  if (idx === Echo._lyricIdx) return;
+  Echo._lyricIdx = idx;
+  const from = Math.max(0, idx - 2);
+  const to = Math.min(lines.length, idx + 4);
+  const html = [];
+  for (let i = from; i < to; i++) {
+    const cls = i === idx ? "cur" : (Math.abs(i - idx) <= 1 ? "near" : "far");
+    html.push('<div class="line ' + cls + '">' + esc(lines[i].text) + "</div>");
+  }
+  el.innerHTML = html.join("");
+}
+
+/* ============================== queue ============================== */
+function renderQueue() {
+  const s = Echo.state || {};
+  const toolsKey = "qt|" + [s.shuffle ? 1 : 0, s.smart_shuffle ? 1 : 0, s.repeat || "Off", s.queue_len || 0, s.queue_index || 0].join("|");
+  if (setHTML($("#queueTools"), toolsKey,
+    '<button class="opt' + (s.shuffle ? " active" : "") + '" data-act="shuffle">Shuffle</button>' +
+    '<button class="opt' + (s.smart_shuffle ? " active" : "") + '" data-act="smart">Smart shuffle</button>' +
+    '<button class="opt' + (s.repeat !== "Off" ? " active" : "") + '" data-act="repeat">Repeat: ' + esc(s.repeat || "Off") + "</button>" +
+    '<span class="badge">' + (s.queue_len || 0) + " in queue · index " + (s.queue_index || 0) + "</span>")) {
+    // Clicks are handled by the single delegated [data-act] listener.
+  }
+  const list = [];
+  if (s.current_track) {
+    list.push('<div class="row playing"><span class="eq"><i></i><i></i><i></i></span>' +
+      '<img class="rthumb" loading="lazy" decoding="async" src="' + artUrl(s.current_track, THUMB, THUMB) + '" alt="" />' +
+      '<span class="rmeta"><b>' + esc(titleFor(s.current_track)) + "</b><i>Now playing · " + esc(artistFor(s.current_track)) + "</i></span>" +
+      '<span class="rtime">' + fmtTime(s.duration_ms || 0) + "</span></div>");
+  }
+  (s.upcoming || []).forEach((u, i) => {
+    list.push('<div class="row" data-path="' + esc(u.path) + '"><span class="idx">' + (s.queue_index + i + 1) + "</span>" +
+      '<img class="rthumb" loading="lazy" decoding="async" src="' + artUrl(u.path, THUMB, THUMB) + '" alt="" />' +
+      '<span class="rmeta"><b>' + esc(titleFor(u.path)) + "</b><i>" + esc(artistFor(u.path)) + "</i></span>" +
+      '<span class="ractions"><button class="icon-btn" data-play="' + esc(u.path) + '" title="Play now">' + ICONS.play + "</button></span>" +
+      '<span class="rtime">' + fmtTime(u.duration_ms || 0) + "</span></div>");
+  });
+  const listKey = "ql|" + (s.current_track || "") + "|" + (s.playing ? 1 : 0) + "|" + (s.upcoming || []).map((u) => u.path).join(",");
+  if (setHTML($("#queueList"), listKey, list.length ? list.join("") : '<div class="empty">Queue is empty. Browse your library and queue something.</div>')) {
+    $$("#queueList [data-play]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); send("load_and_play", b.dataset.play); }));
+  }
+  const t = trackFor(s.current_track);
+  const nowHtml = s.current_track
+    ? '<div class="now-card"><b>' + esc(titleFor(s.current_track)) + "</b><div style=\"color:var(--muted);font-size:12px;margin-top:3px;\">" + esc(artistFor(s.current_track)) + (t && t.album ? " · " + esc(t.album) : "") + '</div><div style="margin-top:10px;" class="hero-badges">' + qualityBadges(t).join("") + "</div></div>"
+    : '<div class="empty">Nothing playing.</div>';
+  setHTML($("#queueNow"), "qn|" + (s.current_track || "") + "|" + (t ? t.path : ""), nowHtml);
+  $("#smartShuffleInfo").textContent = s.smart_shuffle
+    ? "Smart shuffle is on. Selection is biased toward tracks not played recently using the persisted play history. The backend does not send a per-selection reason, so none is shown."
+    : "Smart shuffle biases selection toward tracks you have not played recently, using the persisted play history. The backend does not currently send a per-selection reason, so none is shown.";
+}
+
+/* ============================== browse ============================== */
+const LENSES = [
+  { id: "songs", label: "Songs" },
+  { id: "albums", label: "Albums" },
+  { id: "artists", label: "Artists" },
+  { id: "formats", label: "Formats" },
+  { id: "folders", label: "Folders" }
+];
+function renderLenses() {
+  $("#lenses").innerHTML = LENSES.map((l) => '<button class="lens' + (Echo.lens === l.id ? " active" : "") + '" data-lens="' + l.id + '">' + l.label + "</button>").join("");
+  $$("#lenses .lens").forEach((b) => b.addEventListener("click", () => { Echo.lens = b.dataset.lens; renderBrowse(); }));
+}
+function filteredLibrary() {
+  const q = Echo.filter.trim().toLowerCase();
+  if (!q) return Echo.library;
+  return Echo.library.filter((t) => (t.title + " " + t.artist + " " + t.album + " " + t.path).toLowerCase().indexOf(q) >= 0);
+}
+function groupBy(arr, keyFn) {
+  const m = new Map();
+  arr.forEach((t) => { const k = keyFn(t) || "Unknown"; if (!m.has(k)) m.set(k, []); m.get(k).push(t); });
+  return m;
+}
+function trackRowHTML(t, i, s) {
+  const isCur = s.current_track === t.path;
+  const playing = isCur && s.playing;
+  return '<div class="row' + (isCur ? " playing" : "") + '" data-path="' + esc(t.path) + '">' +
+    (playing ? '<span class="eq"><i></i><i></i><i></i></span>' : '<span class="idx">' + (i + 1) + "</span>") +
+    '<img class="rthumb" loading="lazy" decoding="async" src="' + artUrl(t.path, THUMB, THUMB) + '" alt="" />' +
+    '<span class="rmeta"><b>' + esc(t.title) + "</b><i>" + esc(t.artist || "Unknown artist") + (t.album ? " · " + esc(t.album) : "") + "</i></span>" +
+    '<span class="ractions"><button class="icon-btn" data-play="' + esc(t.path) + '" title="Play from here">' + ICONS.play + "</button></span>" +
+    '<span class="rtime">' + fmtTime(t.duration_ms) + "</span></div>";
+}
+function queueFromBrowse(path) {
+  const list = Echo._browseList || [];
+  const idx = list.findIndex((t) => t.path === path);
+  if (idx < 0) { send("load_and_play", path); return; }
+  send("set_queue", { paths: list.map((t) => t.path), start_index: idx });
+}
+function hideContextMenu() {
+  const el = $("#ctxMenu");
+  if (el) el.style.display = "none";
+}
+function showContextMenu(x, y, items) {
+  const el = $("#ctxMenu");
+  if (!el) return;
+  el.innerHTML = items.map((it, i) => '<button class="ctx-item" data-i="' + i + '">' + esc(it.label) + "</button>").join("");
+  el.style.display = "block";
+  const r = el.getBoundingClientRect();
+  el.style.left = Math.max(6, Math.min(x, window.innerWidth - r.width - 8)) + "px";
+  el.style.top = Math.max(6, Math.min(y, window.innerHeight - r.height - 8)) + "px";
+  $$(".ctx-item", el).forEach((b) => b.addEventListener("click", () => {
+    hideContextMenu();
+    items[Number(b.dataset.i)].run();
+  }));
+}
+function openTrackMenu(path, x, y) {
+  const t = trackFor(path);
+  const albumKey = t && t.album ? t.album : dirName(path);
+  const albumList = Echo.library.filter((x2) => (t && t.album ? x2.album === t.album : dirName(x2.path) === dirName(path)));
+  const items = [
+    { label: "Play now", run: () => send("load_and_play", path) },
+    { label: "Play from here", run: () => queueFromBrowse(path) }
+  ];
+  if (albumList.length > 1) {
+    items.push({
+      label: (t && t.album ? "Queue album: " : "Queue folder: ") + albumKey,
+      run: () => {
+        const start = Math.max(0, albumList.findIndex((x2) => x2.path === path));
+        send("set_queue", { paths: albumList.map((x2) => x2.path), start_index: start });
+      }
+    });
+  }
+  items.push({ label: "Copy file path", run: () => { try { navigator.clipboard.writeText(path); toast("Path copied."); } catch (e) {} } });
+  showContextMenu(x, y, items);
+}
+function renderBrowse() {
+  const s = Echo.state || {};
+  const key = [Echo.lens, Echo.filter, Echo._libVer, s.current_track || "", s.playing ? 1 : 0].join("|");
+  if (Echo._browseKey === key) return;
+  Echo._browseKey = key;
+  renderLenses();
+  const all = filteredLibrary();
+  Echo._browseList = all;
+  const body = $("#browseBody");
+  $("#browseSub").textContent = Echo.filter ? all.length + " of " + Echo.library.length + " tracks match “" + Echo.filter + "”" : Echo.library.length + " tracks indexed.";
+  if (!Echo.library.length) { body.innerHTML = '<div class="empty">No library indexed. Open Setup and choose a music folder.</div>'; return; }
+
+  if (Echo.lens === "songs") {
+    const cap = all.slice(0, 500);
+    body.innerHTML = '<section class="card"><div class="list">' + cap.map((t, i) => trackRowHTML(t, i, s)).join("") + "</div>" +
+      (all.length > cap.length ? '<div class="empty">Showing first ' + cap.length + " of " + all.length + ".</div>" : "") + "</section>";
+  } else if (Echo.lens === "albums" || Echo.lens === "artists") {
+    const key = Echo.lens === "albums" ? (t) => t.album || "Unknown album" : (t) => t.artist || "Unknown artist";
+    const groups = groupBy(all, key);
+    const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    // One card PER group, not per track - the per-track version rendered a
+    // near-identical 320px cover for every song in an album (the browse
+    // "hot mess") and fired one art request per track (the lag source).
+    body.innerHTML = '<div class="album-grid">' + keys.map((k) => {
+      const g = groups.get(k);
+      const cover = g.find((t) => t.has_art) || g[0];
+      const sub = Echo.lens === "albums" ? (g[0].artist || "Unknown artist") : (g.length + " tracks");
+      return '<div class="album-card" data-playgroup="' + esc(k) + '">' +
+        '<img class="cover" loading="lazy" decoding="async" src="' + artUrl(cover.path, COVER, COVER) + '" alt="" />' +
+        "<b>" + esc(k) + "</b><span>" + esc(sub) + "</span></div>";
+    }).join("") + "</div>";
+    $$("[data-playgroup]", body).forEach((b) => b.addEventListener("click", () => {
+      const g = groups.get(b.dataset.playgroup) || [];
+      if (g.length) send("set_queue", { paths: g.map((t) => t.path), start_index: 0 });
+    }));
+  } else if (Echo.lens === "formats") {
+    const groups = groupBy(all, (t) => extOf(t.path).toUpperCase() || "?");
+    const keys = Array.from(groups.keys()).sort();
+    body.innerHTML = keys.map((k) => {
+      const g = groups.get(k);
+      return '<section class="group"><div class="group-head"><h3>' + esc(k) + '</h3><span class="gcount">' + g.length + " tracks</span><div class=\"spacer\"></div>" +
+        '<button class="opt" data-playgroup="' + esc(k) + '">Play all</button></div>' +
+        '<section class="card"><div class="list">' + g.slice(0, 50).map((t, i) => trackRowHTML(t, i, s)).join("") + "</div></section></section>";
+    }).join("");
+    $$("[data-playgroup]", body).forEach((b) => b.addEventListener("click", () => {
+      const g = groups.get(b.dataset.playgroup) || [];
+      if (g.length) send("set_queue", { paths: g.map((t) => t.path), start_index: 0 });
+    }));
+  } else {
+    const groups = groupBy(all, (t) => dirName(t.path) || "/");
+    const keys = Array.from(groups.keys()).sort();
+    body.innerHTML = keys.map((k) => {
+      const g = groups.get(k);
+      return '<section class="group"><div class="group-head">' + ICONS.folder + "<h3>" + esc(k) + '</h3><span class="gcount">' + g.length + ' tracks</span><div class="spacer"></div>' +
+        '<button class="opt" data-playgroup="' + esc(k) + '">Play all</button></div>' +
+        '<section class="card"><div class="list">' + g.slice(0, 50).map((t, i) => trackRowHTML(t, i, s)).join("") + "</div></section></section>";
+    }).join("");
+    $$("[data-playgroup]", body).forEach((b) => b.addEventListener("click", () => {
+      const g = groups.get(b.dataset.playgroup) || [];
+      if (g.length) send("set_queue", { paths: g.map((t) => t.path), start_index: 0 });
+    }));
+  }
+  $$("#browseBody .row[data-path]").forEach((r) => {
+    r.addEventListener("dblclick", () => queueFromBrowse(r.dataset.path));
+  });
+  $$("#browseBody [data-play]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); queueFromBrowse(b.dataset.play); }));
+}
+
+/* ============================== settings ============================== */
+const THEMES = ["dark", "oled", "light", "system"];
+const ACCENTS = ["dynamic", "static"];
+const MOTIONS = ["full", "reduced", "minimal"];
+const LYRICS_POS = ["left", "center", "right", "off"];
+const FLASHBANGS = ["flash", "gentle", "instant", "off"];
+function optRow(id, values, current, cb) {
+  const el = $(id);
+  if (!el) return;
+  el.innerHTML = values.map((v) => '<button class="opt' + (v === current ? " active" : "") + '" data-val="' + v + '">' + v.charAt(0).toUpperCase() + v.slice(1) + "</button>").join("");
+  $$("button", el).forEach((b) => b.addEventListener("click", () => cb(b.dataset.val)));
+}
+function renderDepthSettings() {
+  const enabled = Echo.appearance.depthEnabled !== false;
+  const automatic = !Number.isFinite(Echo.appearance.depthThreshold);
+  $("#depthEnabled").checked = enabled;
+  $("#depthAuto").checked = automatic;
+  $("#depthAuto").disabled = !enabled;
+  $("#depthThreshold").disabled = !enabled || automatic;
+  if (document.activeElement !== $("#depthThreshold")) $("#depthThreshold").value = Math.round((automatic ? .58 : Echo.appearance.depthThreshold) * 100);
+  $("#depthThresholdValue").textContent = $("#depthThreshold").value + "%";
+  const state = Echo.state || {};
+  const failed = [$("#heroStage"), $("#npStage")].some(stage => stage.dataset.depthState === "error");
+  const messages = { idle: "Play a track to prepare its artwork.", queued: "Artwork is queued. Playback is ready.", loading_model: "Preparing the depth model. The first run downloads it; playback stays available.", computing: "Finding the foreground in this cover…", ready: "Depth map is ready. Covers with a distinct foreground work best.", no_art: "This track has no artwork. Add embedded artwork or a cover image beside the track.", error: "Depth could not be prepared. Check the error and retry." };
+  $("#depthStatus").textContent = !enabled ? "Depth is off. Original flat artwork is still available." : state.depth_error || (failed ? "The artwork image could not load. Flat artwork is used where available. Retry to reload it." : messages[state.depth_status || "idle"] || "Waiting for depth status.");
+  $("#retryDepth").disabled = !state.current_track || !enabled || ["queued", "loading_model", "computing"].includes(state.depth_status);
+}
+function renderSettings() {
+  renderDepthSettings();
+  optRow("#themeOpts", THEMES, Echo.appearance.theme, (v) => { Echo.appearance.theme = v; store.set("echo-next.appearance", Echo.appearance); applyAppearance(); });
+  optRow("#accentOpts", ACCENTS, Echo.appearance.accent, (v) => { Echo.appearance.accent = v; store.set("echo-next.appearance", Echo.appearance); applyAppearance(); });
+  optRow("#motionOpts", MOTIONS, Echo.appearance.motion, (v) => { Echo.appearance.motion = v; store.set("echo-next.appearance", Echo.appearance); applyAppearance(); });
+  optRow("#lyricsOpts", LYRICS_POS, Echo.appearance.lyrics || "left", (v) => { Echo.appearance.lyrics = v; store.set("echo-next.appearance", Echo.appearance); applyAppearance(); });
+  optRow("#flashbangOpts", FLASHBANGS, Echo.appearance.flashbang || "flash", (v) => { Echo.appearance.flashbang = v; store.set("echo-next.appearance", Echo.appearance); applyAppearance(); });
+  const bias = $("#smartBias");
+  if (bias) {
+    const s = Echo.state || {};
+    const val = s.smart_shuffle_bias != null ? s.smart_shuffle_bias : 1;
+    if (document.activeElement !== bias) bias.value = val;
+    const bv = $("#smartBiasVal");
+    if (bv) bv.textContent = Number(bias.value).toFixed(2);
+  }
+  $("#settingsLibraryInfo").textContent = Echo.library.length
+    ? Echo.library.length + " tracks indexed. The webview cannot open a native folder picker, so paste or type the path."
+    : "No library indexed yet. The webview cannot open a native folder picker, so paste or type the path.";
+}
+function wireSettings() {
+  $("#depthEnabled").addEventListener("change", event => {
+    Echo.appearance.depthEnabled = event.target.checked;
+    store.set("echo-next.appearance", Echo.appearance);
+    refreshStages();
+    renderDepthSettings();
+  });
+  $("#depthAuto").addEventListener("change", event => {
+    Echo.appearance.depthThreshold = event.target.checked ? null : Number($("#depthThreshold").value) / 100;
+    store.set("echo-next.appearance", Echo.appearance);
+    refreshStages();
+    renderDepthSettings();
+  });
+  $("#depthThreshold").addEventListener("input", event => { $("#depthThresholdValue").textContent = event.target.value + "%"; });
+  $("#depthThreshold").addEventListener("change", event => {
+    Echo.appearance.depthThreshold = Number(event.target.value) / 100;
+    store.set("echo-next.appearance", Echo.appearance);
+    refreshStages();
+  });
+  $("#retryDepth").addEventListener("click", () => {
+    [$("#heroStage"), $("#npStage")].forEach(stage => stage._depthRenderer?.retry());
+    send("retry_depth");
+  });
+  $("#settingsScan").addEventListener("click", () => {
+    const p = $("#settingsLibraryPath").value.trim();
+    if (!p) { toast("Enter a music folder path.", true); return; }
+    send("set_library_path", p);
+    toast("Scanning " + p + " …");
+  });
+  $("#settingsRescan").addEventListener("click", () => { send("scan_library"); toast("Rescanning library …"); });
+  $("#smartBias").addEventListener("input", () => { $("#smartBiasVal").textContent = Number($("#smartBias").value).toFixed(2); });
+  $("#smartBias").addEventListener("change", () => send("set_smart_shuffle_bias", Number($("#smartBias").value)));
+  $("#queueFromLibrary").addEventListener("click", () => {
+    if (!Echo.library.length) { toast("No library indexed.", true); return; }
+    send("set_queue", { paths: Echo.library.map((t) => t.path), start_index: 0 });
+    toast("Queued " + Echo.library.length + " tracks.");
+  });
+}
+
+/* ============================== onboarding ============================== */
+function openOnboarding() {
+  Echo.ob = { step: 0, transition: "gapless", theme: Echo.appearance.theme, accent: Echo.appearance.accent, motion: Echo.appearance.motion, scanning: false, scanned: false };
+  $("#onboarding").classList.add("open");
+  renderOnboarding();
+}
+function closeOnboarding() { $("#onboarding").classList.remove("open"); }
+function renderOnboarding() {
+  const o = Echo.ob;
+  $$(".ob-step").forEach((s) => s.classList.toggle("on", Number(s.dataset.ob) === o.step));
+  $$("#obDots i").forEach((d, i) => d.classList.toggle("on", i === o.step));
+  $$("[data-transition]").forEach((b) => b.classList.toggle("sel", b.dataset.transition === o.transition));
+  $$("[data-ob-group]").forEach((grp) => {
+    const g = grp.dataset.obGroup;
+    const val = o[g];
+    $$("button", grp).forEach((b) => b.classList.toggle("active", b.dataset.val === val));
+  });
+  $("#obBack").style.visibility = o.step === 0 ? "hidden" : "visible";
+  $("#obNext").textContent = o.step === 2 ? "Start Echo" : "Continue";
+  $("#obScanInfo").innerHTML = o.scanning
+    ? '<span class="spin"></span> Scanning…'
+    : (o.scanned ? ICONS.check + " Indexed " + Echo.library.length + " tracks." : "The webview cannot open a native folder picker, so type the path. You can change it later in Setup.");
+}
+function wireOnboarding() {
+  $$("[data-transition]").forEach((b) => b.addEventListener("click", () => { Echo.ob.transition = b.dataset.transition; renderOnboarding(); }));
+  $$("[data-ob-group] button").forEach((b) => b.addEventListener("click", () => {
+    const g = b.closest("[data-ob-group]").dataset.obGroup;
+    Echo.ob[g] = b.dataset.val;
+    Echo.appearance[g] = b.dataset.val;
+    store.set("echo-next.appearance", Echo.appearance);
+    applyAppearance();
+    renderOnboarding();
+  }));
+  $("#obBack").addEventListener("click", () => { if (Echo.ob.step > 0) { Echo.ob.step--; renderOnboarding(); } });
+  $("#obNext").addEventListener("click", () => {
+    if (Echo.ob.step < 2) { Echo.ob.step++; renderOnboarding(); return; }
+    Echo.onboarded = true;
+    store.set("echo-next.onboarded", true);
+    closeOnboarding();
+    setPage("dashboard");
+    toast("Welcome to Echo.");
+  });
+  $("#obSkip").addEventListener("click", () => { Echo.onboarded = true; store.set("echo-next.onboarded", true); closeOnboarding(); });
+  $("#obScan").addEventListener("click", () => {
+    const p = $("#obLibraryPath").value.trim();
+    if (!p) { toast("Enter a music folder path.", true); return; }
+    Echo.ob.scanning = true;
+    renderOnboarding();
+    send("set_library_path", p);
+  });
+}
+function maybeShowOnboarding() {
+  if (Echo.onboarded) return;
+  if ($("#onboarding").classList.contains("open")) return;
+  if (Echo.library.length > 0 || (Echo.state && Echo.state.library_count > 0)) {
+    Echo.onboarded = true;
+    store.set("echo-next.onboarded", true);
+    return;
+  }
+  openOnboarding();
+}
+
+/* ============================== command palette ============================== */
+const COMMANDS = [
+  { id: "playpause", label: "Play / Pause", hint: "Space", run: () => { const s = Echo.state || {}; send(s.playing ? "pause" : "play"); } },
+  { id: "next", label: "Next track", hint: "→", run: () => send("next") },
+  { id: "prev", label: "Previous track", hint: "←", run: () => send("prev") },
+  { id: "shuffle", label: "Toggle shuffle", run: () => send("set_shuffle", !(Echo.state && Echo.state.shuffle)) },
+  { id: "smart", label: "Toggle smart shuffle", run: () => send("set_smart_shuffle", !(Echo.state && Echo.state.smart_shuffle)) },
+  { id: "repeat", label: "Cycle repeat mode", run: () => send("cycle_repeat") },
+  { id: "concert", label: "Toggle Concert Hall", run: () => send("set_concert_hall", !(Echo.state && Echo.state.concert_hall_enabled)) },
+  { id: "mono", label: "Toggle mono downmix", run: () => send("set_mono_downmix", !(Echo.state && Echo.state.mono_downmix)) },
+  { id: "rescan", label: "Rescan library", run: () => { send("scan_library"); toast("Rescanning …"); } },
+  { id: "go:dashboard", label: "Go to Dashboard", run: () => setPage("dashboard") },
+  { id: "go:nowplaying", label: "Go to Now Playing", run: () => setPage("nowplaying") },
+  { id: "go:queue", label: "Go to Queue", run: () => setPage("queue") },
+  { id: "go:browse", label: "Go to Browse", run: () => setPage("browse") },
+  { id: "go:settings", label: "Go to Setup", run: () => setPage("settings") }
+];
+let cmdSel = 0, cmdFiltered = COMMANDS;
+function openPalette() {
+  $("#palette").classList.add("open");
+  $("#cmdInput").value = "";
+  cmdFiltered = COMMANDS;
+  cmdSel = 0;
+  renderPalette();
+  setTimeout(() => $("#cmdInput").focus(), 30);
+}
+function closePalette() { $("#palette").classList.remove("open"); }
+function renderPalette() {
+  $("#cmdList").innerHTML = cmdFiltered.map((c, i) =>
+    '<div class="cmd-item' + (i === cmdSel ? " sel" : "") + '" data-i="' + i + '">' + ICONS.check +
+    "<span>" + esc(c.label) + '</span><span class="k">' + esc(c.hint || "") + "</span></div>").join("");
+  $$("#cmdList .cmd-item").forEach((n) => n.addEventListener("click", () => runCommand(cmdFiltered[Number(n.dataset.i)])));
+}
+function runCommand(c) { closePalette(); if (c) c.run(); }
+function filterPalette(q) {
+  q = q.trim().toLowerCase();
+  cmdFiltered = !q ? COMMANDS : COMMANDS.filter((c) => c.label.toLowerCase().indexOf(q) >= 0);
+  cmdSel = 0;
+  renderPalette();
+}
+
+/* ============================== routing ============================== */
+function setPage(page) {
+  Echo.page = page;
+  $$(".nav-btn[data-page]").forEach((b) => b.classList.toggle("active", b.dataset.page === page));
+  $$(".page").forEach((p) => p.classList.toggle("active", p.id === "page-" + page));
+  $("#pages").scrollTop = 0;
+  if (page === "dashboard") renderDashboard();
+  else if (page === "nowplaying") renderNowPlaying();
+  else if (page === "queue") renderQueue();
+  else if (page === "browse") renderBrowse();
+  else if (page === "settings") renderSettings();
+  if (page === "dashboard" || page === "nowplaying") refreshStages();
+}
+
+/* ============================== bridge ============================== */
+window.__echoStateUpdate = function (state) {
+  if (!state || typeof state !== "object") return;
+  Echo.state = state;
+  if (state.current_track !== Echo.curTrack) {
+    Echo.curTrack = state.current_track;
+    Echo.artOk = false;
+    onTrackChanged();
+  }
+  if (state.depth_mask_path !== Echo.maskPath) {
+    Echo.maskPath = state.depth_mask_path;
+    refreshStages();
+  }
+  if (state.last_error) toast(state.last_error, true);
+  renderTopNow();
+  renderPlayerBar();
+  if (Echo.page === "dashboard") renderDashboard();
+  else if (Echo.page === "nowplaying") renderNowPlaying();
+  else if (Echo.page === "queue") renderQueue();
+  else if (Echo.page === "browse") renderBrowse();
+  if (Echo.page === "settings") renderDepthSettings();
+  maybeShowOnboarding();
+};
+
+window.__echoLibraryUpdate = function (tracks) {
+  if (!Array.isArray(tracks)) return;
+  Echo.library = tracks;
+  Echo.byPath = new Map();
+  tracks.forEach((t) => Echo.byPath.set(t.path, t));
+  Echo._libVer++;
+  if (Echo.ob.scanning) { Echo.ob.scanning = false; Echo.ob.scanned = true; renderOnboarding(); }
+  if (Echo.page === "browse") renderBrowse();
+  else if (Echo.page === "dashboard") renderDashboard();
+  renderSettings();
+  maybeShowOnboarding();
+};
+
+function onTrackChanged() {
+  const p = Echo.state ? Echo.state.current_track : null;
+  setAmbient(p ? artUrl(p, AMBIENT, AMBIENT) : "");
+  updateAccent(p);
+  loadLyrics(p);
+  if (!p) { Echo.artOk = false; refreshStages(); return; }
+  const img = new Image();
+  refreshStages();
+  img.onload = () => { if (Echo.curTrack !== p) return; Echo.artOk = true; refreshStages(); renderTopNow(); };
+  img.onerror = () => { if (Echo.curTrack !== p) return; Echo.artOk = false; refreshStages(); };
+  img.src = artUrl(p, 256, 256);
+}
+
+/* ============================== boot ============================== */
+function wireGlobal() {
+  $$(".nav-btn[data-page]").forEach((b) => b.addEventListener("click", () => setPage(b.dataset.page)));
+  $("#cmdBtn").addEventListener("click", openPalette);
+  $("#openOnboarding").addEventListener("click", openOnboarding);
+  $("#npClose").addEventListener("click", () => setPage("dashboard"));
+  $("#globalSearch").addEventListener("input", (e) => { Echo.filter = e.target.value; if (Echo.page !== "browse") setPage("browse"); else renderBrowse(); });
+  $("#palette").addEventListener("click", (e) => { if (e.target === $("#palette")) closePalette(); });
+  $("#cmdInput").addEventListener("input", (e) => filterPalette(e.target.value));
+  $("#onboarding").addEventListener("click", (e) => { if (e.target === $("#onboarding")) { /* keep first-run modal open */ } });
+  document.addEventListener("keydown", (e) => {
+    const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); return; }
+    if (e.key === "Escape") { closePalette(); return; }
+    if ($("#palette").classList.contains("open")) {
+      if (e.key === "ArrowDown") { e.preventDefault(); cmdSel = Math.min(cmdFiltered.length - 1, cmdSel + 1); renderPalette(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); cmdSel = Math.max(0, cmdSel - 1); renderPalette(); }
+      else if (e.key === "Enter") { e.preventDefault(); runCommand(cmdFiltered[cmdSel]); }
+      return;
+    }
+    if (typing) return;
+    if (e.code === "Space") { e.preventDefault(); const s = Echo.state || {}; send(s.playing ? "pause" : "play"); }
+    else if (e.key === "ArrowRight" && e.shiftKey) send("next");
+    else if (e.key === "ArrowLeft" && e.shiftKey) send("prev");
+  });
+  bindSeek($("#heroSeek"));
+  bindSeek($("#npSeek"));
+  bindSeek($("#pbSeek"));
+  bindSpeed($("#npSpeed"));
+  wireTransport();
+  document.addEventListener("contextmenu", (e) => {
+    const el = e.target.closest("[data-path]");
+    if (!el) { hideContextMenu(); return; }
+    e.preventDefault();
+    openTrackMenu(el.dataset.path, e.clientX, e.clientY);
+  });
+  document.addEventListener("click", hideContextMenu);
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { refreshStages(); renderTopNow(); }, 250);
+  });
+}
+
+(function boot() {
+  wireGlobal();
+  wireOnboarding();
+  wireSettings();
+  Echo.onboarded = !!store.get("echo-next.onboarded", false);
+  applyAppearance();
+  setPage("dashboard");
+  send("get_library");
+  setTimeout(maybeShowOnboarding, 400);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+/target/
+/.qa/
+/.tools/
+/.venv/
+__pycache__/

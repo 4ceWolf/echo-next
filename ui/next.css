@@ -1,0 +1,13 @@
+:root{--bg-0:#101112;--bg-1:#17191b;--panel:#191c1f;--panel-2:#22262a;--panel-solid:#191c1f;--stroke:#353a40;--stroke-strong:#505861;--text:#f3f1eb;--muted:#adb4bd;--muted-2:#939ca6;--blur:none;--shadow:0 12px 32px #0003;--r-xl:18px;--r-lg:14px}
+body[data-theme="oled"]{--panel:#101214;--panel-2:#181b1e;--stroke:#343a40}
+body[data-theme="light"]{--panel:#fff;--panel-2:#f0f1f3;--stroke:#bfc5cc;--muted-2:#616b78}
+.ambient{opacity:.12}.card{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}.card-label{letter-spacing:1.4px}.page-head h1{letter-spacing:-1px}.hint{line-height:1.6}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.np-art,.depth-art{inset:0;pointer-events:none;will-change:auto;transition:opacity .25s ease}
+.np-stage.has-art .np-art-bg,.np-stage.has-depth .np-art-fg,.depth-stage.has-art .depth-art[data-layer="bg"],.depth-stage.has-depth .depth-art[data-layer="fg"]{transform:none;filter:none}
+body[data-motion="full"] .np-stage.has-depth .np-art-fg{animation:none}
+.np-ui{z-index:auto;color:#fff}.np-meta{position:relative;z-index:8}.np-controls,.np-scrub,.np-dsp{position:relative;z-index:8}.np-scrub{padding:12px 16px;border-radius:12px;background:#101112cc}.np-controls{width:fit-content;padding:8px;border-radius:14px;background:#101112e8;border:1px solid #ffffff30}.np-dsp{width:fit-content;padding:8px 10px;border-radius:12px;background:#101112e8}
+.depth-stage [data-layer="bg"]{z-index:0}.depth-stage [data-layer="fg"]{z-index:2}.depth-stage .depth-sheen{z-index:3}
+.depth-control-row{display:flex;align-items:center;gap:10px;min-height:40px}.depth-control-row input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}.depth-control-row label{margin:0}.depth-control-row input[type="range"]{flex:1;min-width:0;accent-color:var(--accent)}#depthStatus{min-height:3em;margin-block:12px;overflow-wrap:anywhere}#depthThresholdValue{font-variant-numeric:tabular-nums;min-width:3ch}.np-top{color:#fff}
+@media(prefers-reduced-motion:reduce){.page,.modal{animation:none}.np-art,.depth-art{transition:none}.np-lyrics,.np-lyrics .line{transition:none}}
+@media(max-width:600px){.np-meta h2{font-size:26px}.np-lyrics .line{font-size:20px}.np-lyrics{width:76%;top:38%}.np-ui{padding:16px 5%}.np-scrub{width:100%}}
